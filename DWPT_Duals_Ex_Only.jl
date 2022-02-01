@@ -3,6 +3,8 @@
 
 # MUST USE #DEV Version of PowerSimulations.jl
 
+# bubbles test
+
 using PowerSystems
 #using PowerGraphics # NOT COMPATIBLE ATM
 using PowerSimulations
