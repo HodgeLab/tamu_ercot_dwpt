@@ -1,1 +1,1 @@
-# tamu_ercot_dwpt
+# TAMU ERCOT DWPT
