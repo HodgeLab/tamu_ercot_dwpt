@@ -183,3 +183,22 @@ XLSX.writetable(
 #    sheetname="Curtailments",
 #    anchor_cell="A1"
 #)
+
+"""
+# COMPARE INITIAL CONDITIONS:
+# Step 1. BUILD SIM BUT DO NOT EXECUTE
+
+uc_model = get_simulation_model(sim, :UC)
+container_uc = PSI.get_optimization_container(uc_model)
+
+container_uc. # (PRESS TAB TO SHOW FIELDS)
+container_uc.initial_conditions # (SHOWS DICT WITH KEYS)
+
+keys(container_uc.initial_conditions)
+ics_values = container_uc.initial_conditions[ COPY PASTE DEVICE STATUS ];
+
+for ic in ics_values
+@show PSI.get_component_name(ic)
+@show PSI.get_condition(ic)
+end
+"""

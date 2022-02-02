@@ -187,26 +187,17 @@ XLSX.writetable(
 
 """
 # COMPARE INITIAL CONDITIONS:
-
 # Step 1. BUILD SIM BUT DO NOT EXECUTE
 
-sim
-uc_model = get_simulation_model(sim, :UC)
+# FOR CURRENT TAG:
+uc_model = sim.problems[:UC]
 container_uc = PSI.get_optimization_container(uc_model)
-
-container_uc.
-# (PRESS TAB TO SHOW FIELDS)
-
-container_uc.initial_conditions
-# (SHOWS DICT WITH KEYS)
-
-keys(container_uc.initial_conditions)
-ics_values = container_uc.initial_conditions[ COPY PASTE DEVICE STATUS ];
+ics = container_uc.initial_conditions
+keys(ics.data)
+ics_values = ics_start.data[PowerSimulations.ICKey{DeviceStatus, ThermalMultiStart}(DeviceStatus, ThermalMultiStart)];
 
 for ic in ics_values
-@show PSI.get_component_name(ic)
-@show PSI.get_condition(ic)
+    @show PSI.get_device_name(ic)
+    @show PSI.get_condition(ic)
 end
-
-# Only difference between two versions will be the keys
 """
