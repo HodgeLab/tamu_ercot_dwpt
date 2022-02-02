@@ -60,9 +60,9 @@ template_uc = ProblemTemplate(NetworkModel(
 ))
 
 #Injection Device Formulations
-#set_device_model!(template_uc, ThermalMultiStart, ThermalBasicUnitCommitment) #ThermalStandardUnitCommitment
+set_device_model!(template_uc, ThermalMultiStart, ThermalBasicUnitCommitment) #ThermalStandardUnitCommitment
 #set_device_model!(template_uc, ThermalMultiStart, ThermalStandardUnitCommitment)
-set_device_model!(template_uc, ThermalMultiStart, ThermalBasicCompactUnitCommitment)
+#set_device_model!(template_uc, ThermalMultiStart, ThermalBasicCompactUnitCommitment)
 set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
 set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 set_device_model!(template_uc, HydroDispatch, FixedOutput)
@@ -129,6 +129,13 @@ timestamps = get_realized_timestamps(uc_results)
 variables = read_realized_variables(uc_results)
 
 # GET RESULTS FROM THIS System
+# FROM #master BRANCH:
+# variables.keys
+# variables.vals
+renPwr = variables["ActivePowerVariable__RenewableDispatch"]
+thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
+
+# FROM #DEV BRANCH:
 # keys(variables)
 # collect(values(variables[ENTER KEY HERE])
 #slackUp = get!(variables, PowerSimulations.VariableKey{SystemBalanceSlackUp, System}(""), 1)

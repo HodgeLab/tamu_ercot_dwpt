@@ -1,4 +1,5 @@
-# cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt\\Satellite_Execution")
+# cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt\\oldSchool")
+# ] activate .
 # include("DWPT_NoDuals_Ex_Only.jl")
 
 using PowerSystems
@@ -45,7 +46,7 @@ cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimu
 template_uc = OperationsProblemTemplate()
 
 #Injection Device Formulations
-set_device_model!(template_uc, ThermalMultiStart, ThermalStandardUnitCommitment) #ThermalStandardUnitCommitment
+set_device_model!(template_uc, ThermalMultiStart, ThermalBasicUnitCommitment)#ThermalStandardUnitCommitment) #ThermalStandardUnitCommitment
 set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
 set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 set_device_model!(template_uc, HydroDispatch, FixedOutput)
@@ -133,6 +134,14 @@ variables = read_realized_variables(uc_results)
 #plot_dataframe(variables[:P__RenewableDispatch], timestamps; bar = true)
 
 # STACKED GENERATION PLOT:
+
+# DO NOT USE POWERGRAPHICS METHODS TO PULL DATA:
+# EXHIBIT A: generation = get_generation_data(uc_results)
+# CORRECT WAY:
+thermal_gen = variables[:P__ThermalMultiStart]
+renewable_gen = variables[:P__RenewableDispatch]
+
+# For plotting only, not *accurate*
 generation = get_generation_data(uc_results)
 date_folder = "Jan14_22/"
 sim_week = "_WinterWeek_PeakEV_Part2_"
@@ -175,3 +184,29 @@ XLSX.writetable(
 #    sheetname="Curtailments",
 #    anchor_cell="A1"
 #)
+
+"""
+# COMPARE INITIAL CONDITIONS:
+
+# Step 1. BUILD SIM BUT DO NOT EXECUTE
+
+sim
+uc_model = get_simulation_model(sim, :UC)
+container_uc = PSI.get_optimization_container(uc_model)
+
+container_uc.
+# (PRESS TAB TO SHOW FIELDS)
+
+container_uc.initial_conditions
+# (SHOWS DICT WITH KEYS)
+
+keys(container_uc.initial_conditions)
+ics_values = container_uc.initial_conditions[ COPY PASTE DEVICE STATUS ];
+
+for ic in ics_values
+@show PSI.get_component_name(ic)
+@show PSI.get_condition(ic)
+end
+
+# Only difference between two versions will be the keys
+"""
