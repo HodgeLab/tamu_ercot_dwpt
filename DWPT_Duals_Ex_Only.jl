@@ -1,9 +1,7 @@
-# cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt\\Satellite_Execution\\oldSchool")
+# cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
 # include("DWPT_Duals_Ex_Only.jl")
 
-# MUST USE #DEV Version of PowerSimulations.jl
-
-# bubbles test
+# MUST USE #MASTER branch of PowerSimulations.jl
 
 using PowerSystems
 #using PowerGraphics # NOT COMPATIBLE ATM
@@ -40,7 +38,7 @@ tran_set = string(Adopt, Method)
 DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
 OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
 main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
-local_dir = "C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt"
+local_dir = "C:\\Users\\A.J. Sauter\\Documents"
 system = System(joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys.json"))
 
 #system = System(joinpath(main_dir, "active/tamu_DA_sys.json"))
