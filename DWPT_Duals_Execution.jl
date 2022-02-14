@@ -1,4 +1,4 @@
-# cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt\\Satellite_Execution")
+# cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
 # include("DWPT_Duals_Execution.jl")
 
 # MUST USE #DEV Version of PowerSimulations.jl
@@ -19,27 +19,19 @@ using TimeSeries
 
 using Gurobi
 
-#ENV["GUROBI_HOME"] = "C:\\gurobi950\\win64"
-#import Pkg
-#Pkg.add("Gurobi")
-#Pkg.build("Gurobi")
-
-#using JuMP, Gurobi
-
-# UPDATE SOLVER: GORUBI
-#using Gorubi #solver
-
 Adopt = "A100_"
 Method = "T100"
 tran_set = string(Adopt, Method)
 
 # Link to system
 DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
+OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
+main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
+local_dir = "C:\\Users\\A.J. Sauter\\Documents"
 system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
 
 # INITIALIZE LOADS:
 # Get Bus Names
-main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
 cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling")
 bus_details = CSV.read("bus_load_coords.csv", DataFrame)
 bus_names = bus_details[:,1]
@@ -57,7 +49,7 @@ resolution = Dates.Hour(1)
 
 cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Texas Traffic Data\\NHTS_Database\\ABM_Outputs")
 # Read from Excel File
-df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_", tran_set, "_rs77.xlsx"), "load_demand")...)
+df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_", tran_set, "_v4.xlsx"), "load_demand")...)
 
 for x = 1: num_loads
     # Read from Excel File
@@ -65,7 +57,7 @@ for x = 1: num_loads
     # sh = xf["load_demand"]
 
     # Extract power demand column
-    load_data = df[!, x]
+    load_data = df[!, x]*0.05
     if maximum(load_data) > 2
         @error("$x - $(maximum(load_data))")
     end
@@ -118,7 +110,7 @@ for x = 1: num_loads
         #println("Time series added.")
     end
 end
-to_json(system, joinpath(main_dir, "active/tamu_DA_sys.json"), force=true)
+to_json(system, joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys.json"), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
@@ -128,11 +120,11 @@ cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimu
 template_uc = ProblemTemplate(NetworkModel(
     DCPPowerModel,
     use_slacks = true,
-    duals = [CopperPlateBalanceConstraint]
+    duals = [FlowActivePowerConstraint] #CopperPlateBalanceConstraint
 ))
 
 #Injection Device Formulations
-set_device_model!(template_uc, ThermalMultiStart, ThermalStandardUnitCommitment) #ThermalBasicUnitCommitment
+set_device_model!(template_uc, ThermalMultiStart, ThermalBasicUnitCommitment) #ThermalBasicUnitCommitment
 set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
 set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 set_device_model!(template_uc, HydroDispatch, FixedOutput)
@@ -144,8 +136,6 @@ set_device_model!(template_uc, TapTransformer, StaticBranchUnbounded)
 #Service Formulations
 set_service_model!(template_uc, VariableReserve{ReserveUp}, RangeReserve)
 set_service_model!(template_uc, VariableReserve{ReserveDown}, RangeReserve)
-
-#problems = SimulationProblems(UC = OperationsProblem(template_uc, system, optimizer = solver))
 
 models = SimulationModels(
     decision_models = [
@@ -160,30 +150,18 @@ models = SimulationModels(
             ),
             system_to_file = false,
             initialize_model = false,
+            #calculate_conflict = true,
             optimizer_solve_log_print = true,
             direct_mode_optimizer = true,
         )
     ]
 )
 
-#Create Optimizer
-#solver = optimizer_with_attributes(Gurobi.Optimizer, "logLevel" => 1, "ratioGap" => 0.5)
-
-#intervals = Dict("UC" => (Hour(24),Consecutive()))
-
-#DA_sequence = SimulationSequence(
-#    problems = problems,
-#    intervals = intervals,
-#    ini_cond_chronology = IntraProblemChronology()
-#)
-
 DA_sequence = SimulationSequence(
     models = models,
     #intervals = intervals,
     ini_cond_chronology = IntraProblemChronology()
 )
-
-OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
 
 sim = Simulation(
     name = string("dwpt-week-", tran_set),
@@ -204,46 +182,28 @@ execute!(sim)
 results = SimulationResults(sim);
 uc_results = get_problem_results(results, "UC"); # UC stage result metadata
 
-read_parameter(
-    uc_results,
-    :P__max_active_power__RenewableDispatch_max_active_power,
-    #initial_time = DateTime("2018-03-29T00:00:00"),
-    #initial_time = DateTime("2018-08-05T00:00:00"),
-    #initial_time = DateTime("2018-09-23T00:00:00")
-    initial_time = DateTime("2018-01-01T00:00:00"),
-    count = 7,
-)
-
 set_system!(uc_results, system)
 
-# Execute Plotting
-println("MADE IT TO PLOTTING")
-#gr() # Loads the GR backend
-#plotlyjs() # Loads the JS backend
+# Execute Results
+println("MADE IT TO RESULTS")
+
 timestamps = get_realized_timestamps(uc_results)
 variables = read_realized_variables(uc_results)
-#plot_dataframe(variables[:P__RenewableDispatch], timestamps)
-# TO MAKE A STACK OR BAR CHART:
-#plot_dataframe(variables[:P__ThermalMultiStart], timestamps; stack = true)
-#plot_dataframe(variables[:P__RenewableDispatch], timestamps; bar = true)
 
-# STACKED GENERATION PLOT:
-generation = get_generation_data(uc_results)
+# GET RESULTS FROM THIS System
+# FROM #master BRANCH:
+# variables.keys
+# variables.vals
+renPwr = variables["ActivePowerVariable__RenewableDispatch"]
+thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
 date_folder = "Jan14_22/"
-sim_week = "_WinterWeek_PeakEV_"
+sim_week = "_WinterWeek_PeakEV_DUALS"
 sim_startday = "_01-01"
 simplegen = string("SimpleGenStack", sim_week, tran_set, sim_startday)
 plot_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots/"
-#plot_pgdata(generation, stack = true; title = simplegen, save = string(plot_dir, date_folder), format = "png");
-
-# Stacked Gen by Fuel Type:
-fuelgen = string("FuelGenStack", sim_week, tran_set, sim_startday)
-#plot_fuel(uc_results, stack = true; title = fuelgen, save = string(plot_dir, date_folder), format = "png");
 
 # Reserves Plot
-reserves = get_service_data(uc_results)
 resgen = string("Reserves", sim_week, tran_set, sim_startday)
-#plot_pgdata(reserves; title = resgen, save = string(plot_dir, date_folder), format = "png");
 
 # Write Excel Output Files
 cd(string("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution\\Result_Plots\\", date_folder))
@@ -251,22 +211,15 @@ xcelname = string("_Output", sim_week, tran_set, sim_startday, ".xlsx")
 # Simple XLSX file output with ability to overwrite
 XLSX.writetable(
     string("RE_GEN", xcelname),
-    variables[:P__RenewableDispatch],
+    renPwr,
     overwrite=true,
     sheetname="RE_Dispatch",
     anchor_cell="A1"
 )
 XLSX.writetable(
     string("TH_GEN", xcelname),
-    variables[:P__ThermalMultiStart],
+    thermPwr,
     overwrite=true,
     sheetname="TH_Dispatch",
-    anchor_cell="A1"
-)
-XLSX.writetable(
-    string("Curtailed", xcelname),
-    variables[:______], FILL THIS IN
-    overwrite=true,
-    sheetname="Curtailments",
     anchor_cell="A1"
 )

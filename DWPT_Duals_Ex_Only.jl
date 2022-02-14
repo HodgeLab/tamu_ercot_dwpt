@@ -17,21 +17,10 @@ using PyPlot
 using DataFrames
 using TimeSeries
 
-using Gurobi
-#using Cbc
+using Gurobi #Cbc
 
-#ENV["GUROBI_HOME"] = "C:\\gurobi950\\win64"
-#import Pkg
-#Pkg.add("Gurobi")
-#Pkg.build("Gurobi")
-
-#using JuMP, Gurobi
-
-# UPDATE SOLVER: GORUBI
-#using Gorubi #solver
-
-Adopt = "A100_"
-Method = "T100"
+Adopt = "_A05"
+Method = "T100_"
 tran_set = string(Adopt, Method)
 
 # Link to system
@@ -39,8 +28,15 @@ DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSi
 OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
 main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
 local_dir = "C:\\Users\\A.J. Sauter\\Documents"
-system = System(joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys.json"))
+#system = System(joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys.json"))
 
+# Reduced_LVL System
+system = System(joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys_LVLred.json"))
+
+# BasePV System
+#system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
+
+#Alterante Systems
 #system = System(joinpath(main_dir, "active/tamu_DA_sys.json"))
 #system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
 
@@ -54,9 +50,9 @@ println("MADE IT TO EXECUTION")
 cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution")
 #Create empty template
 template_uc = ProblemTemplate(NetworkModel(
-    CopperPlatePowerModel, #DCPPowerModel,
+    DCPPowerModel, #CopperPlatePowerModel,
     use_slacks = true,
-    duals = [CopperPlateBalanceConstraint] #CopperPlateBalanceConstraint
+    duals = [NodalBalanceActiveConstraint] #CopperPlateBalanceConstraint  ActivePowerNodalBalance
 ))
 
 #Injection Device Formulations
@@ -67,9 +63,9 @@ set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
 set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 set_device_model!(template_uc, HydroDispatch, FixedOutput)
 # Check these? May be diff. for TAMU
-#set_device_model!(template_uc, Line, StaticBranchUnbounded)
-#set_device_model!(template_uc, Transformer2W, StaticBranchUnbounded)
-#set_device_model!(template_uc, TapTransformer, StaticBranchUnbounded)
+set_device_model!(template_uc, Line, StaticBranchUnbounded)
+set_device_model!(template_uc, Transformer2W, StaticBranchUnbounded)
+set_device_model!(template_uc, TapTransformer, StaticBranchUnbounded)
 
 #Service Formulations
 set_service_model!(template_uc, VariableReserve{ReserveUp}, RangeReserve)
@@ -103,7 +99,7 @@ DA_sequence = SimulationSequence(
 
 sim = Simulation(
     name = string("dwpt-week-", tran_set),
-    steps = 7,
+    steps = 365,
     models = models,
     sequence = DA_sequence,
     #initial_time = DateTime("2018-03-29T00:00:00"),
@@ -150,7 +146,7 @@ thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
 #thermStop = get!(variables, PowerSimulations.VariableKey{StopVariable, ThermalMultiStart}(""), 1)
 
 date_folder = "Jan14_22/"
-sim_week = "_WinterWeek_PeakEV_DUALS"
+sim_week = "_LVL_Reduction_Yr"
 sim_startday = "_01-01"
 simplegen = string("SimpleGenStack", sim_week, tran_set, sim_startday)
 plot_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots/"
@@ -176,13 +172,6 @@ XLSX.writetable(
     sheetname="TH_Dispatch",
     anchor_cell="A1"
 )
-#XLSX.writetable(
-#    string("Curtailed", xcelname),
-#    variables[:______], FILL THIS IN
-#    overwrite=true,
-#    sheetname="Curtailments",
-#    anchor_cell="A1"
-#)
 
 """
 # COMPARE INITIAL CONDITIONS:

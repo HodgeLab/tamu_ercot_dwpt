@@ -24,16 +24,26 @@ cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimu
 therm_dets = CSV.read("ERCOT_ThermalUnits.csv", DataFrame)
 
 fueltype = []
+latitudes = []
+longitudes = []
 
 for x = 1:353
     th_name = string(therm_dets[x, 1])
     new_therm = get_component(ThermalMultiStart, system, th_name)
+    lat_coord = new_therm.bus.ext["x"]
+    long_coord = new_therm.bus.ext["y"]
     try
         append!(fueltype, [new_therm.ext["ERCOT_FUEL"]])
+        append!(latitudes, [lat_coord])
+        append!(longitudes, [long_coord])
     catch
         append!(fueltype, ["missing?"])
+        append!(latitudes, ["missing?"])
+        append!(longitudes, ["missing?"])
     end
-    println(fueltype[x], "  ", x)
+    #println(fueltype[x])
+    #println(latitudes[x])
+    println(longitudes[x])
 end
 
 println(fueltype)
