@@ -45,6 +45,8 @@ dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
 # Set forecast resolution
 resolution = Dates.Hour(1)
 
+#test
+
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
 cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution")
