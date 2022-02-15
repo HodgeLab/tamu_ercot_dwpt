@@ -1,7 +1,7 @@
 # cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
 # include("DWPT_Duals_Ex_Only.jl")
 
-# MUST USE #MASTER branch of PowerSimulations.jl 
+# MUST USE #MASTER branch of PowerSimulations.jl
 
 using PowerSystems
 #using PowerGraphics # NOT COMPATIBLE ATM
@@ -16,7 +16,7 @@ using Dates
 using PyPlot
 using DataFrames
 using TimeSeries
-#test2
+
 using Gurobi #Cbc
 
 Adopt = "_A05"
