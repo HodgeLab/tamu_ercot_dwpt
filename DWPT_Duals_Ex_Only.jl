@@ -19,8 +19,8 @@ using TimeSeries
 
 using Gurobi #Cbc
 
-Adopt = "_A05"
-Method = "T100_"
+Adopt = "A05"
+Method = "_T100"
 tran_set = string(Adopt, Method)
 
 # Link to system
@@ -32,10 +32,8 @@ local_dir = "C:\\Users\\A.J. Sauter\\Documents"
 
 # Reduced_LVL System
 system = System(joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys_LVLred.json"))
-
 # BasePV System
 #system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
-
 #Alterante Systems
 #system = System(joinpath(main_dir, "active/tamu_DA_sys.json"))
 #system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
@@ -108,21 +106,19 @@ sim = Simulation(
     initial_time = DateTime("2018-01-01T00:00:00"),
     simulation_folder = DATA_DIR,
 )
-
 # Use serialize = false only during development
 build_out = build!(sim, serialize = false)
 execute!(sim)
 
 results = SimulationResults(sim);
 uc_results = get_problem_results(results, "UC"); # UC stage result metadata
-
 set_system!(uc_results, system)
-
 # Execute Results
 println("MADE IT TO RESULTS")
 
 timestamps = get_realized_timestamps(uc_results)
 variables = read_realized_variables(uc_results)
+parameters = read_realized_parameters(uc_results)
 
 # GET RESULTS FROM THIS System
 # FROM #master BRANCH:
@@ -145,14 +141,26 @@ thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
 #thermStart = get!(variables, PowerSimulations.VariableKey{StartVariable, ThermalMultiStart}(""), 1)
 #thermStop = get!(variables, PowerSimulations.VariableKey{StopVariable, ThermalMultiStart}(""), 1)
 
-date_folder = "Jan14_22/"
-sim_week = "_LVL_Reduction_Yr"
+date_folder = "Feb22_22/"
+sim_week = "_LVL_Red_"
 sim_startday = "_01-01"
-simplegen = string("SimpleGenStack", sim_week, tran_set, sim_startday)
 plot_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots/"
+#simplegen = string("SimpleGenStack", sim_week, tran_set, sim_startday)
+fuelgen = string("FuelGenStack", sim_week)
+plot_fuel(uc_results, stack = true; title = fuelgen, save = string(plot_dir, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
+# NOTE: Zoom in with plotlyJS backend
+
+# Demand Plot
+dem_name = string("PowerLoadDemand", sim_week)
+load_demand = get_load_data(uc_results);
+plot_demand(uc_results; title = load_demand, save = string(plot_dir, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+# NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
 resgen = string("Reserves", sim_week, tran_set, sim_startday)
+reserves = get_service_data(uc_results);
+plot_pgdata(reserves; title = resgen, save = string(plot_dir, date_folder), format = "svg");
+# NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
 cd(string("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution\\Result_Plots\\", date_folder))
@@ -171,6 +179,20 @@ XLSX.writetable(
     overwrite=true,
     sheetname="TH_Dispatch",
     anchor_cell="A1"
+)
+XLSX.writetable(
+    string("DEMAND", xcelname),
+    load_param,
+    overwrite=true,
+    sheetname="Demand",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    reserves,
+    overwrite=true,
+    sheetname="Reserves",
+    anchor_cell = "A1"
 )
 
 """

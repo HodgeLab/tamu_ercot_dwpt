@@ -1,8 +1,6 @@
 # cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
 # include("DWPT_Duals_Execution.jl")
 
-# MUST USE #DEV Version of PowerSimulations.jl
-
 using PowerSystems
 #using PowerGraphics # NOT COMPATIBLE ATM
 using PowerSimulations
