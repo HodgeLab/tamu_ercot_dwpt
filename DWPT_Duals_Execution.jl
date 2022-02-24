@@ -3,12 +3,6 @@
 
 # MUST USE #DEV Version of PowerSimulations.jl
 
-#Path env already activated in original call, this instantiates env.
-using Pkg
-cd("/home/ansa1773")
-Pkg.activate("cosim")
-Pkg.instantiate()
-
 using PowerSystems
 using PowerGraphics
 using PowerSimulations
@@ -19,7 +13,7 @@ using CSV
 using XLSX
 using Plots
 using Dates
-using PyPlot
+#using PyPlot
 using DataFrames
 using TimeSeries
 
@@ -40,7 +34,7 @@ RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
 active_dir = "/projects/ansa1773/SIIP_Modeling/active"
 
 # Reduced_LVL System
-system = System(joinpath(active_dir, "/tamu_DA_sys_LVLred.json"))
+system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
 # BasePV System
 #system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
 #Alterante Systems
@@ -119,7 +113,7 @@ for x = 1: num_loads
         #println("Time series added.")
     end
 end
-to_json(system, joinpath(active_dir, "/tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
+to_json(system, joinpath(active_dir, "tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
@@ -212,7 +206,7 @@ resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Res
 resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
 
 date_folder = "Feb22_22/"
-sim_week = "_LVL_Red_"
+sim_week = "_LVL_Red_TEST_"
 sim_startday = "_01-01"
 fuelgen = string("FuelGenStack", sim_week)
 plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
