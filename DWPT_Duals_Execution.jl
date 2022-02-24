@@ -1,8 +1,16 @@
 # cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
 # include("DWPT_Duals_Execution.jl")
 
+# MUST USE #DEV Version of PowerSimulations.jl
+
+#Path env already activated in original call, this instantiates env.
+using Pkg
+cd("/home/ansa1773")
+Pkg.activate("cosim")
+Pkg.instantiate()
+
 using PowerSystems
-#using PowerGraphics # NOT COMPATIBLE ATM
+using PowerGraphics
 using PowerSimulations
 using InfrastructureSystems
 const PSI = PowerSimulations
@@ -17,27 +25,35 @@ using TimeSeries
 
 using Gurobi
 
+# Level of EV adoption (value from 0 to 1)
+ev_adpt_level = 1
 Adopt = "A100_"
 Method = "T100"
 tran_set = string(Adopt, Method)
 
 # Link to system
-DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
-OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
-local_dir = "C:\\Users\\A.J. Sauter\\Documents"
-system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
+home_dir = "/home/ansa1773/tamu_ercot_dwpt"
+main_dir = "/projects/ansa1773/SIIP_Modeling"
+DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
+OUT_DIR = "/projects/ansa1773/SIIP_Modeling/outputs"
+RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
+active_dir = "/projects/ansa1773/SIIP_Modeling/active"
+
+# Reduced_LVL System
+system = System(joinpath(active_dir, "/tamu_DA_sys_LVLred.json"))
+# BasePV System
+#system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
+#Alterante Systems
+#system = System(joinpath(main_dir, "active/tamu_DA_sys.json"))
+#system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
 
 # INITIALIZE LOADS:
 # Get Bus Names
-cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling")
+cd(main_dir)
 bus_details = CSV.read("bus_load_coords.csv", DataFrame)
 bus_names = bus_details[:,1]
 load_names = bus_details[:,2]
-
-cd(string("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Texas Traffic Data\\STAR II Database\\Load_Volumes_post"))
-load_list = readdir()
-dim_loads = size(load_list)
+dim_loads = size(load_names)
 num_loads = dim_loads[1]
 
 # Set dates for sim
@@ -45,17 +61,12 @@ dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
 # Set forecast resolution
 resolution = Dates.Hour(1)
 
-cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Texas Traffic Data\\NHTS_Database\\ABM_Outputs")
 # Read from Excel File
 df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_", tran_set, "_v4.xlsx"), "load_demand")...)
 
 for x = 1: num_loads
-    # Read from Excel File
-    # xf = XLSX.readxlsx(string("ABM_Energy_Output_", tran_set, "_v4.xlsx"))
-    # sh = xf["load_demand"]
-
     # Extract power demand column
-    load_data = df[!, x]*0.05
+    load_data = df[!, x]*ev_adpt_level
     if maximum(load_data) > 2
         @error("$x - $(maximum(load_data))")
     end
@@ -108,12 +119,12 @@ for x = 1: num_loads
         #println("Time series added.")
     end
 end
-to_json(system, joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys.json"), force=true)
+to_json(system, joinpath(active_dir, "/tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
-cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution")
+cd(home_dir)
 #Create empty template
 template_uc = ProblemTemplate(NetworkModel(
     DCPPowerModel,
@@ -122,7 +133,9 @@ template_uc = ProblemTemplate(NetworkModel(
 ))
 
 #Injection Device Formulations
-set_device_model!(template_uc, ThermalMultiStart, ThermalBasicUnitCommitment) #ThermalBasicUnitCommitment
+set_device_model!(template_uc, ThermalMultiStart, ThermalBasicUnitCommitment) #ThermalStandardUnitCommitment
+#set_device_model!(template_uc, ThermalMultiStart, ThermalStandardUnitCommitment)
+#set_device_model!(template_uc, ThermalMultiStart, ThermalBasicCompactUnitCommitment)
 set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
 set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 set_device_model!(template_uc, HydroDispatch, FixedOutput)
@@ -158,7 +171,7 @@ models = SimulationModels(
 DA_sequence = SimulationSequence(
     models = models,
     #intervals = intervals,
-    ini_cond_chronology = IntraProblemChronology()
+    ini_cond_chronology = InterProblemChronology()
 )
 
 sim = Simulation(
@@ -170,7 +183,7 @@ sim = Simulation(
     #initial_time = DateTime("2018-08-05T00:00:00"),
     #initial_time = DateTime("2018-09-23T00:00:00")
     initial_time = DateTime("2018-01-01T00:00:00"),
-    simulation_folder = DATA_DIR,
+    simulation_folder = OUT_DIR,
 )
 
 # Use serialize = false only during development
@@ -179,14 +192,13 @@ execute!(sim)
 
 results = SimulationResults(sim);
 uc_results = get_problem_results(results, "UC"); # UC stage result metadata
-
 set_system!(uc_results, system)
-
 # Execute Results
 println("MADE IT TO RESULTS")
 
 timestamps = get_realized_timestamps(uc_results)
 variables = read_realized_variables(uc_results)
+parameters = read_realized_parameters(uc_results)
 
 # GET RESULTS FROM THIS System
 # FROM #master BRANCH:
@@ -194,17 +206,32 @@ variables = read_realized_variables(uc_results)
 # variables.vals
 renPwr = variables["ActivePowerVariable__RenewableDispatch"]
 thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
-date_folder = "Jan14_22/"
-sim_week = "_WinterWeek_PeakEV_DUALS"
+load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
+resUp_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
+resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN"]
+resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
+
+date_folder = "Feb22_22/"
+sim_week = "_LVL_Red_"
 sim_startday = "_01-01"
-simplegen = string("SimpleGenStack", sim_week, tran_set, sim_startday)
-plot_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots/"
+fuelgen = string("FuelGenStack", sim_week)
+plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
+# NOTE: Zoom in with plotlyJS backend
+
+# Demand Plot
+dem_name = string("PowerLoadDemand", sim_week)
+load_demand = get_load_data(uc_results);
+plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+# NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
 resgen = string("Reserves", sim_week, tran_set, sim_startday)
+reserves = get_service_data(uc_results);
+plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
+# NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
-cd(string("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution\\Result_Plots\\", date_folder))
+cd(string(RES_DIR, date_folder))
 xcelname = string("_Output", sim_week, tran_set, sim_startday, ".xlsx")
 # Simple XLSX file output with ability to overwrite
 XLSX.writetable(
@@ -220,4 +247,32 @@ XLSX.writetable(
     overwrite=true,
     sheetname="TH_Dispatch",
     anchor_cell="A1"
+)
+XLSX.writetable(
+    string("DEMAND", xcelname),
+    load_param,
+    overwrite=true,
+    sheetname="Demand",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resUp_param,
+    overwrite=true,
+    sheetname="ResUP",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resDown_param,
+    overwrite=true,
+    sheetname="ResDWN",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resSpin_param,
+    overwrite=true,
+    sheetname="ResSPIN",
+    anchor_cell = "A1"
 )
