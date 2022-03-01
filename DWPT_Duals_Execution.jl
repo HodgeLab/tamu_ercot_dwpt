@@ -17,7 +17,9 @@ using Dates
 using DataFrames
 using TimeSeries
 
-using Gurobi
+using CPLEX
+
+loc_run = true
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = 1
@@ -25,13 +27,21 @@ Adopt = "A100_"
 Method = "T100"
 tran_set = string(Adopt, Method)
 
-# Link to system
-home_dir = "/home/ansa1773/tamu_ercot_dwpt"
-main_dir = "/projects/ansa1773/SIIP_Modeling"
-DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
-OUT_DIR = "/projects/ansa1773/SIIP_Modeling/outputs"
-RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
-active_dir = "/projects/ansa1773/SIIP_Modeling/active"
+if loc_run == true
+    # Link to system
+    DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
+    OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
+    main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
+    local_dir = "C:\\Users\\A.J. Sauter\\Documents"
+else
+    # Link to system
+    home_dir = "/home/ansa1773/tamu_ercot_dwpt"
+    main_dir = "/projects/ansa1773/SIIP_Modeling"
+    DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
+    OUT_DIR = "/projects/ansa1773/SIIP_Modeling/outputs"
+    RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
+    active_dir = "/projects/ansa1773/SIIP_Modeling/active"
+end
 
 # Reduced_LVL System
 system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
@@ -123,7 +133,7 @@ cd(home_dir)
 template_uc = ProblemTemplate(NetworkModel(
     DCPPowerModel,
     use_slacks = true,
-    duals = [FlowActivePowerConstraint] #CopperPlateBalanceConstraint
+    duals = [NodalBalanceActiveConstraint] #CopperPlateBalanceConstraint
 ))
 
 #Injection Device Formulations

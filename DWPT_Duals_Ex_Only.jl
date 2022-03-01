@@ -1,10 +1,11 @@
 # cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
+#cd("C:\\Users\\antho\\github\\tamu_ercot_dwpt")
 # include("DWPT_Duals_Ex_Only.jl")
 
 # MUST USE #MASTER branch of PowerSimulations.jl
 
 using PowerSystems
-#using PowerGraphics # NOT COMPATIBLE ATM
+using PowerGraphics
 using PowerSimulations
 using InfrastructureSystems
 const PSI = PowerSimulations
@@ -13,25 +14,40 @@ using CSV
 using XLSX
 using Plots
 using Dates
-using PyPlot
+#using PyPlot
 using DataFrames
 using TimeSeries
 
-using Gurobi #Cbc
+using CPLEX
 
+loc_run = true
+
+# Level of EV adoption (value from 0 to 1)
+ev_adpt_level = 1
 Adopt = "A05"
 Method = "_T100"
 tran_set = string(Adopt, Method)
 
-# Link to system
-DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
-OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
-local_dir = "C:\\Users\\A.J. Sauter\\Documents"
-#system = System(joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys.json"))
+if loc_run == true
+    # Link to system
+    home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
+    main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
+    DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
+    OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
+else
+    # Link to system
+    home_dir = "/home/ansa1773/tamu_ercot_dwpt"
+    main_dir = "/projects/ansa1773/SIIP_Modeling"
+    DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
+    OUT_DIR = "/projects/ansa1773/SIIP_Modeling/outputs"
+    RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
+    active_dir = "/projects/ansa1773/SIIP_Modeling/active"
+end
 
 # Reduced_LVL System
-system = System(joinpath(local_dir, "Local_Sys_Files/tamu_DA_sys_LVLred.json"))
+system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
 # BasePV System
 #system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
 #Alterante Systems
@@ -45,7 +61,7 @@ resolution = Dates.Hour(1)
 
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
-cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution")
+cd(home_dir)
 #Create empty template
 template_uc = ProblemTemplate(NetworkModel(
     DCPPowerModel, #CopperPlatePowerModel,
@@ -76,7 +92,7 @@ models = SimulationModels(
             system;
             name = "UC",
             optimizer = optimizer_with_attributes(
-                Gurobi.Optimizer,
+                CPLEX.Optimizer,
                 #"logLevel" => 1,
                 #"ratioGap" => 0.5
             ),
@@ -97,14 +113,14 @@ DA_sequence = SimulationSequence(
 
 sim = Simulation(
     name = string("dwpt-week-", tran_set),
-    steps = 365,
+    steps = 7,
     models = models,
     sequence = DA_sequence,
     #initial_time = DateTime("2018-03-29T00:00:00"),
     #initial_time = DateTime("2018-08-05T00:00:00"),
     #initial_time = DateTime("2018-09-23T00:00:00")
     initial_time = DateTime("2018-01-01T00:00:00"),
-    simulation_folder = DATA_DIR,
+    simulation_folder = OUT_DIR,
 )
 # Use serialize = false only during development
 build_out = build!(sim, serialize = false)
@@ -126,6 +142,10 @@ parameters = read_realized_parameters(uc_results)
 # variables.vals
 renPwr = variables["ActivePowerVariable__RenewableDispatch"]
 thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
+load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
+resUp_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
+resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN"]
+resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
 
 # FROM #DEV BRANCH:
 # keys(variables)
@@ -142,28 +162,26 @@ thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
 #thermStop = get!(variables, PowerSimulations.VariableKey{StopVariable, ThermalMultiStart}(""), 1)
 
 date_folder = "Feb22_22/"
-sim_week = "_LVL_Red_"
+sim_week = "_LVL_Red_TEST1_"
 sim_startday = "_01-01"
-plot_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots/"
-#simplegen = string("SimpleGenStack", sim_week, tran_set, sim_startday)
 fuelgen = string("FuelGenStack", sim_week)
-plot_fuel(uc_results, stack = true; title = fuelgen, save = string(plot_dir, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
+plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
 
 # Demand Plot
 dem_name = string("PowerLoadDemand", sim_week)
 load_demand = get_load_data(uc_results);
-plot_demand(uc_results; title = load_demand, save = string(plot_dir, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
 resgen = string("Reserves", sim_week, tran_set, sim_startday)
 reserves = get_service_data(uc_results);
-plot_pgdata(reserves; title = resgen, save = string(plot_dir, date_folder), format = "svg");
+plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
 # NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
-cd(string("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling\\Satellite_Execution\\Result_Plots\\", date_folder))
+cd(string(RES_DIR, date_folder))
 xcelname = string("_Output", sim_week, tran_set, sim_startday, ".xlsx")
 # Simple XLSX file output with ability to overwrite
 XLSX.writetable(
@@ -189,9 +207,23 @@ XLSX.writetable(
 )
 XLSX.writetable(
     string("RESERVES", xcelname),
-    reserves,
+    resUp_param,
     overwrite=true,
-    sheetname="Reserves",
+    sheetname="ResUP",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resDown_param,
+    overwrite=true,
+    sheetname="ResDWN",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resSpin_param,
+    overwrite=true,
+    sheetname="ResSPIN",
     anchor_cell = "A1"
 )
 
