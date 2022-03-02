@@ -94,7 +94,7 @@ models = SimulationModels(
             optimizer = optimizer_with_attributes(
                 CPLEX.Optimizer,
                 #"logLevel" => 1,
-                #"ratioGap" => 0.5
+                "CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
             ),
             system_to_file = false,
             initialize_model = false, # Changed!

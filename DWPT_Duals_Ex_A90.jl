@@ -30,10 +30,12 @@ sim_name = "_dwpt-hs-lvlr_"
 
 if loc_run == true
     # Link to system
-    DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
-    OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-    main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
-    local_dir = "C:\\Users\\A.J. Sauter\\Documents"
+    home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
+    main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
+    DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
+    OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
 else
     # Link to system
     home_dir = "/home/ansa1773/tamu_ercot_dwpt"
@@ -154,7 +156,7 @@ models = SimulationModels(
             optimizer = optimizer_with_attributes(
                 CPLEX.Optimizer,
                 #"logLevel" => 1,
-                #"ratioGap" => 0.5
+                "CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
             ),
             system_to_file = false,
             initialize_model = false,
