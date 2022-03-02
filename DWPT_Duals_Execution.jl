@@ -19,7 +19,7 @@ using TimeSeries
 
 using CPLEX
 
-loc_run = true
+loc_run = false
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = 1
@@ -159,7 +159,7 @@ models = SimulationModels(
             system;
             name = "UC",
             optimizer = optimizer_with_attributes(
-                Gurobi.Optimizer,
+                CPLEX.Optimizer,
                 #"logLevel" => 1,
                 #"ratioGap" => 0.5
             ),
