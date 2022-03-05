@@ -17,13 +17,13 @@ using Dates
 using DataFrames
 using TimeSeries
 
-using CPLEX
+using Gurobi
 
-loc_run = false
+loc_run = true
 
 # Level of EV adoption (value from 0 to 1)
-ev_adpt_level = 1
-Adopt = "A100_"
+ev_adpt_level = .05
+Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
 
@@ -68,8 +68,9 @@ dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
 resolution = Dates.Hour(1)
 
 # Read from Excel File
-df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_", tran_set, "_v4.xlsx"), "load_demand")...)
-
+df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v4.xlsx"), "load_demand")...)
+println("")
+println("adding load data...")
 for x = 1: num_loads
     # Extract power demand column
     load_data = df[!, x]*ev_adpt_level
@@ -127,7 +128,7 @@ for x = 1: num_loads
 end
 to_json(system, joinpath(active_dir, "tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
 println("New active system file has been created.")
-
+println("")
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
 cd(home_dir)
@@ -161,9 +162,11 @@ models = SimulationModels(
             system;
             name = "UC",
             optimizer = optimizer_with_attributes(
-                CPLEX.Optimizer,
+                Gurobi.Optimizer,
                 #"logLevel" => 1,
-                "CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
+                #"CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
+                #"CPX_PARAM_MIPEMPHASIS" => 1,
+                #"CPX_PARAM_MIPDISPLAY" => 5,
             ),
             system_to_file = false,
             initialize_model = false,
@@ -193,8 +196,12 @@ sim = Simulation(
 )
 
 # Use serialize = false only during development
+println("")
+println("building sim...")
 build_out = build!(sim, serialize = false)
+println("begin execution:")
 execute!(sim)
+println("")
 
 results = SimulationResults(sim);
 uc_results = get_problem_results(results, "UC"); # UC stage result metadata
@@ -227,7 +234,7 @@ plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date
 # Demand Plot
 dem_name = string("PowerLoadDemand", sim_week)
 load_demand = get_load_data(uc_results);
-plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
