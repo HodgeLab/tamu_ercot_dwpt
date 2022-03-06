@@ -18,15 +18,16 @@ using Dates
 using DataFrames
 using TimeSeries
 
-using CPLEX
+using Gurobi
 
-loc_run = true
+loc_run = false
 
 # Level of EV adoption (value from 0 to 1)
-ev_adpt_level = 1
-Adopt = "A05"
-Method = "_T100"
+ev_adpt_level = .05
+Adopt = "A05_"
+Method = "T100"
 tran_set = string(Adopt, Method)
+sim_name = "_dwpt-test_"
 
 if loc_run == true
     # Link to system
@@ -34,20 +35,20 @@ if loc_run == true
     main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
     DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
     OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-    RES_DIR = "C:/Users/antho/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
     active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
 else
     # Link to system
     home_dir = "/home/ansa1773/tamu_ercot_dwpt"
-    main_dir = "/projects/ansa1773/SIIP_Modeling"
+    main_dir = "/scratch/summit/ansa1773/SIIP_Modeling"
     DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
-    OUT_DIR = "/projects/ansa1773/SIIP_Modeling/outputs"
-    RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
-    active_dir = "/projects/ansa1773/SIIP_Modeling/active"
+    OUT_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/outputs"
+    RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
+    active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active"
 end
 
 # Reduced_LVL System
-system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
+system = System(joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")))
 # BasePV System
 #system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
 #Alterante Systems
@@ -92,9 +93,8 @@ models = SimulationModels(
             system;
             name = "UC",
             optimizer = optimizer_with_attributes(
-                CPLEX.Optimizer,
+                Gurobi.Optimizer,
                 #"logLevel" => 1,
-                "CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
             ),
             system_to_file = false,
             initialize_model = false, # Changed!
@@ -112,8 +112,8 @@ DA_sequence = SimulationSequence(
 )
 
 sim = Simulation(
-    name = string("dwpt-week-", tran_set),
-    steps = 7,
+    name = string("dwpt-test-", tran_set),
+    steps = 1,
     models = models,
     sequence = DA_sequence,
     #initial_time = DateTime("2018-03-29T00:00:00"),
@@ -123,8 +123,12 @@ sim = Simulation(
     simulation_folder = OUT_DIR,
 )
 # Use serialize = false only during development
+println("")
+println("building sim...")
 build_out = build!(sim, serialize = false)
+println("begin execution:")
 execute!(sim)
+println("")
 
 results = SimulationResults(sim);
 uc_results = get_problem_results(results, "UC"); # UC stage result metadata
@@ -161,7 +165,7 @@ resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Res
 #thermStart = get!(variables, PowerSimulations.VariableKey{StartVariable, ThermalMultiStart}(""), 1)
 #thermStop = get!(variables, PowerSimulations.VariableKey{StopVariable, ThermalMultiStart}(""), 1)
 
-date_folder = "Feb22_22/"
+date_folder = "/Feb22_22/"
 sim_week = "_LVL_Red_TEST1_"
 sim_startday = "_01-01"
 fuelgen = string("FuelGenStack", sim_week)

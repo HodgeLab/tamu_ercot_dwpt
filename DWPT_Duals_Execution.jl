@@ -26,6 +26,7 @@ ev_adpt_level = .05
 Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
+sim_name = "_dwpt-test_"
 
 if loc_run == true
     # Link to system
