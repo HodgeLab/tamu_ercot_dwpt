@@ -205,19 +205,19 @@ resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Res
 
 date_folder = "Feb22_22/"
 fuelgen = string("FuelGenStack", sim_name, tran_set)
-plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
+plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
 
 # Demand Plot
 dem_name = string("PowerLoadDemand", sim_name, tran_set)
 load_demand = get_load_data(uc_results);
-plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
 resgen = string("Reserves", sim_name, tran_set)
 reserves = get_service_data(uc_results);
-plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "png");
+plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
 # NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files

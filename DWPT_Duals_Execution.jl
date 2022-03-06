@@ -42,12 +42,11 @@ else
     DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
     OUT_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/outputs"
     RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
-    active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active/tamu_DA_LVLred_/A05_T100"
+    active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active"
 end
 
 # Reduced_LVL System
-#system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
-system = System(joinpath(active_dir, "_sys.json"))
+system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
 # BasePV System
 #system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
 #Alterante Systems
@@ -72,58 +71,58 @@ resolution = Dates.Hour(1)
 df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v4.xlsx"), "load_demand")...)
 println("")
 println("adding load data...")
-#for x = 1: num_loads
+for x = 1: num_loads
     # Extract power demand column
-#    load_data = df[!, x]*ev_adpt_level
-#    if maximum(load_data) > 2
-#        @error("$x - $(maximum(load_data))")
-#    end
-#    # Convert to TimeArray
-#    load_array = TimeArray(dates, load_data)
-#    #println(load_array[1])
-#
-#    # Create forecast dictionary
-#    forecast_data = Dict()
-#    # Create deterministic time series data
-#    time_series = Deterministic("max_active_power",forecast_data, resolution)
-#
-#    # Check for pre-existing DWPT PowerLoad components
-#    l_name = string(load_names[x], "_DWPT")
-#    new_load = get_component(PowerLoad, system, l_name)
-#    if isnothing(new_load)
-#        #println("Load not found. Now creating...")
-#        # Create new load
-#        new_load = PowerLoad(
-#            name = string(l_name), # ADD '_DWPT' to each bus name
-#            available = true,
-#            bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
-#            model = "ConstantPower",
-#            active_power = 1.0,
-#            reactive_power = 1.0,
-#            max_active_power = 1.5,
-#            max_reactive_power = 1.3,
-#            services = [],
-#            )
-#        # Add component to system
-#        add_component!(system, new_load)
-#        # Add deterministic forecast to the system
-#        add_time_series!(system, new_load, time_series)
-#        #println("Load created, time series added.")
-#    else
-#        # Add deterministic forecast to the system
-#        # NOTE: run another "try" instance w/o the "catch", add_time_series after it
-#        try
-#            remove_time_series!(system, Deterministic, new_load, "max_active_power")
-#        catch
-#            #println("Time Series data did not previously exist. Now adding...")
-#        end
-#        add_time_series!(system, new_load, time_series)
-#        #println("Time series added.")
-#    end
-#end
-#to_json(system, joinpath(active_dir, "tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
-#println("New active system file has been created.")
-#println("")
+    load_data = df[!, x]*ev_adpt_level
+    if maximum(load_data) > 2
+        @error("$x - $(maximum(load_data))")
+    end
+    # Convert to TimeArray
+    load_array = TimeArray(dates, load_data)
+    # Create forecast dictionary
+    forecast_data = Dict()
+    for i = 1:365
+        strt = (i-1)*24+1
+        finish = i*24+12
+        forecast_data[dates[strt]] = load_data[strt:finish]
+    end
+    # Create deterministic time series data
+    time_series = Deterministic("max_active_power",forecast_data, resolution)
+
+    # Check for pre-existing DWPT PowerLoad components
+    l_name = string(load_names[x], "_DWPT")
+    new_load = get_component(PowerLoad, system, l_name)
+    if isnothing(new_load)
+        # Create new load
+        new_load = PowerLoad(
+            name = string(l_name), # ADD '_DWPT' to each bus name
+            available = true,
+            bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
+            model = "ConstantPower",
+            active_power = 1.0,
+            reactive_power = 1.0,
+            base_power = 100.0,
+            max_active_power = 1.5,
+            max_reactive_power = 1.3,
+            services = [],
+            )
+        # Add component to system
+        add_component!(system, new_load)
+        # Add deterministic forecast to the system
+        add_time_series!(system, new_load, time_series)
+    else
+        # Add deterministic forecast to the system
+        # NOTE: run another "try" instance w/o the "catch", add_time_series after it
+        try
+            remove_time_series!(system, Deterministic, new_load, "max_active_power")
+        catch
+        end
+        add_time_series!(system, new_load, time_series)
+    end
+end
+to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")), force=true)
+println("New active system file has been created.")
+println("")
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
 cd(home_dir)
@@ -179,7 +178,7 @@ DA_sequence = SimulationSequence(
 )
 
 sim = Simulation(
-    name = string("dwpt-week-", tran_set),
+    name = string("dwpt-test-", tran_set),
     steps = 1,
     models = models,
     sequence = DA_sequence,
@@ -219,23 +218,23 @@ resUp_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Reser
 resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN"]
 resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
 
-date_folder = "Feb22_22/"
+date_folder = "/Feb22_22/"
 sim_week = "_LVL_Red_TEST_"
 sim_startday = "_01-01"
 fuelgen = string("FuelGenStack", sim_week)
-#plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
+plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
 
 # Demand Plot
 dem_name = string("PowerLoadDemand", sim_week)
 load_demand = get_load_data(uc_results);
-#plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
 resgen = string("Reserves", sim_week, tran_set, sim_startday)
 reserves = get_service_data(uc_results);
-#plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "png");
+plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
 # NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
