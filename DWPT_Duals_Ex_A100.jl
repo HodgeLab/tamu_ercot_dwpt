@@ -120,7 +120,7 @@ for x = 1: num_loads
         add_time_series!(system, new_load, time_series)
     end
 end
-to_json(system, joinpath(active_dir, "tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
+to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
@@ -156,7 +156,6 @@ models = SimulationModels(
             optimizer = optimizer_with_attributes(
                 Gurobi.Optimizer,
                 #"logLevel" => 1,
-                #"CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
             ),
             system_to_file = false,
             initialize_model = false,

@@ -17,7 +17,7 @@ using Dates
 using DataFrames
 using TimeSeries
 
-using CPLEX
+using Gurobi
 
 loc_run = false
 
@@ -39,11 +39,11 @@ if loc_run == true
 else
     # Link to system
     home_dir = "/home/ansa1773/tamu_ercot_dwpt"
-    main_dir = "/projects/ansa1773/SIIP_Modeling"
+    main_dir = "/scratch/summit/ansa1773/SIIP_Modeling"
     DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
-    OUT_DIR = "/projects/ansa1773/SIIP_Modeling/outputs"
-    RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
-    active_dir = "/projects/ansa1773/SIIP_Modeling/active"
+    OUT_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/outputs"
+    RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
+    active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active"
 end
 
 # Reduced_LVL System
@@ -120,7 +120,7 @@ for x = 1: num_loads
         add_time_series!(system, new_load, time_series)
     end
 end
-to_json(system, joinpath(active_dir, "tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
+to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
@@ -154,9 +154,8 @@ models = SimulationModels(
             system;
             name = "UC",
             optimizer = optimizer_with_attributes(
-                CPLEX.Optimizer,
+                Gurobi.Optimizer,
                 #"logLevel" => 1,
-                "CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
             ),
             system_to_file = false,
             initialize_model = false,

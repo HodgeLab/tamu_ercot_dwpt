@@ -1,5 +1,5 @@
 # cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
-# include("DWPT_Duals_Execution.jl")
+# include("DWPT_Duals_Ex_SEEC.jl")
 
 # MUST USE #DEV Version of PowerSimulations.jl
 
@@ -189,7 +189,7 @@ DA_sequence = SimulationSequence(
 
 sim = Simulation(
     name = string("dwpt-week-", tran_set),
-    steps = 7,
+    steps = 1,
     models = models,
     sequence = DA_sequence,
     #initial_time = DateTime("2018-03-29T00:00:00"),
