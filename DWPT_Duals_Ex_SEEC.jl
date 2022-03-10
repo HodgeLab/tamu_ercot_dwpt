@@ -19,7 +19,7 @@ using TimeSeries
 
 using Gurobi
 
-run_spot = "SEEC"
+run_spot = "Desktop"
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
@@ -42,6 +42,13 @@ elseif run_spot == "SEEC"
     OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
     RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
     active_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
+elseif run_spot == "Desktop"
+    home_dir = "A:/Users/Documents/ASPIRE_Simulators/tamu_ercot_dwpt"
+    main_dir = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling"
+    DATA_DIR = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
+    OUT_DIR = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
+    RES_DIR = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    active_dir = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
 else
     # Link to system
     home_dir = "/home/ansa1773/tamu_ercot_dwpt"
