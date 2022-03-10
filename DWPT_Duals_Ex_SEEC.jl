@@ -19,7 +19,7 @@ using TimeSeries
 
 using Gurobi
 
-run_spot = "Desktop"
+run_spot = "HOME"
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
@@ -140,7 +140,7 @@ for x = 1: num_loads
         #println("Time series added.")
     end
 end
-to_json(system, joinpath(active_dir, "tamu_DA_LVLred_bpv_", tran_set, "_sys.json"), force=true)
+to_json(system, joinpath(active_dir, string("tamu_DA_LVLred_bpv_", tran_set, "_sys.json")), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
@@ -239,15 +239,15 @@ plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date
 
 # Demand Plot
 dem_name = string("PowerLoadDemand", sim_name, tran_set)
-load_demand = get_load_data(uc_results);
-bubbles = string(RES_DIR, date_folder)
-plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+#load_demand = get_load_data(uc_results);
+#bubbles = string(RES_DIR, date_folder)
+#plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
 resgen = string("Reserves", sim_name, tran_set)
-reserves = get_service_data(uc_results);
-plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "png");
+#reserves = get_service_data(uc_results);
+#plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "png");
 # NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
