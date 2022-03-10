@@ -39,11 +39,11 @@ if loc_run == true
 else
     # Link to system
     home_dir = "/home/ansa1773/tamu_ercot_dwpt"
-    main_dir = "/scratch/summit/ansa1773/SIIP_Modeling"
+    main_dir = "/scratch/alpine/ansa1773/SIIP_Modeling"
     DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
-    OUT_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/outputs"
-    RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
-    active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active"
+    OUT_DIR = "/scratch/alpine/ansa1773/SIIP_Modeling/outputs"
+    RES_DIR = "/scratch/alpine/ansa1773/SIIP_Modeling/results"
+    active_dir = "/scratch/alpine/ansa1773/SIIP_Modeling/active"
 end
 
 # Reduced_LVL System

@@ -40,11 +40,11 @@ if loc_run == true
 else
     # Link to system
     home_dir = "/home/ansa1773/tamu_ercot_dwpt"
-    main_dir = "/scratch/summit/ansa1773/SIIP_Modeling"
+    main_dir = "/scratch/alpine/ansa1773/SIIP_Modeling"
     DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
-    OUT_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/outputs"
-    RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
-    active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active"
+    OUT_DIR = "/scratch/alpine/ansa1773/SIIP_Modeling/outputs"
+    RES_DIR = "/scratch/alpine/ansa1773/SIIP_Modeling/results"
+    active_dir = "/scratch/alpine/ansa1773/SIIP_Modeling/active"
 end
 
 # Reduced_LVL System
@@ -94,7 +94,7 @@ models = SimulationModels(
             name = "UC",
             optimizer = optimizer_with_attributes(
                 Gurobi.Optimizer,
-                #"logLevel" => 1,
+                #"Threads" => 64,
             ),
             system_to_file = false,
             initialize_model = false, # Changed!
@@ -112,7 +112,7 @@ DA_sequence = SimulationSequence(
 )
 
 sim = Simulation(
-    name = string("dwpt-test-", tran_set),
+    name = string("dwpt-test_", tran_set),
     steps = 1,
     models = models,
     sequence = DA_sequence,
@@ -169,19 +169,19 @@ date_folder = "/Feb22_22/"
 sim_week = "_LVL_Red_TEST1_"
 sim_startday = "_01-01"
 fuelgen = string("FuelGenStack", sim_week)
-plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
+#plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
 
 # Demand Plot
 dem_name = string("PowerLoadDemand", sim_week)
-load_demand = get_load_data(uc_results);
-plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+#load_demand = get_load_data(uc_results);
+#plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
 resgen = string("Reserves", sim_week, tran_set, sim_startday)
-reserves = get_service_data(uc_results);
-plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
+#reserves = get_service_data(uc_results);
+#plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
 # NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
