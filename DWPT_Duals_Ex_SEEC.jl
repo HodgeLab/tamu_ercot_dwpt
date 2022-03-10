@@ -26,6 +26,7 @@ ev_adpt_level = .05
 Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
+sim_name = "_dwpt-bpv-lvlr_"
 
 if run_spot == "HOME"
     # Link to system
@@ -60,7 +61,7 @@ else
 end
 
 # Reduced_LVL System
-system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
+system = System(joinpath(active_dir, "tamu_DA_LVLr_BasePV_sys.json"))
 # BasePV System
 #system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
 #Alterante Systems
@@ -139,7 +140,7 @@ for x = 1: num_loads
         #println("Time series added.")
     end
 end
-to_json(system, joinpath(active_dir, "tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
+to_json(system, joinpath(active_dir, "tamu_DA_LVLred_bpv_", tran_set, "_sys.json"), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
@@ -195,7 +196,7 @@ DA_sequence = SimulationSequence(
 )
 
 sim = Simulation(
-    name = string("dwpt-week-", tran_set),
+    name = string("dwpt-bpv-lvlr-", tran_set),
     steps = 1,
     models = models,
     sequence = DA_sequence,
@@ -231,29 +232,27 @@ resUp_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Reser
 resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN"]
 resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
 
-date_folder = "/Feb22_22/"
-sim_week = "_LVL_Red_TEST_"
-sim_startday = "_01-01"
-fuelgen = string("FuelGenStack", sim_week)
+date_folder = "Feb22_22/"
+fuelgen = string("FuelGenStack", sim_name, tran_set)
 plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
 
 # Demand Plot
-dem_name = string("PowerLoadDemand", sim_week)
+dem_name = string("PowerLoadDemand", sim_name, tran_set)
 load_demand = get_load_data(uc_results);
 bubbles = string(RES_DIR, date_folder)
-plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
-resgen = string("Reserves", sim_week, tran_set, sim_startday)
+resgen = string("Reserves", sim_name, tran_set)
 reserves = get_service_data(uc_results);
 plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "png");
 # NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
 cd(string(RES_DIR, date_folder))
-xcelname = string("_Output", sim_week, tran_set, sim_startday, ".xlsx")
+xcelname = string("_Output", sim_name, tran_set, ".xlsx")
 # Simple XLSX file output with ability to overwrite
 XLSX.writetable(
     string("RE_GEN", xcelname),
