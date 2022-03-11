@@ -1,5 +1,5 @@
 # cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
-# include("DWPT_Duals_Execution.jl")
+# include(".\\usefulMethods\\Get_Sim_Results.jl")
 
 # MUST USE #DEV Version of PowerSimulations.jl
 
@@ -19,14 +19,14 @@ using TimeSeries
 
 using Gurobi
 
-run_spot = "HOME"
+run_spot = "Desktop"
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
 Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
-sim_name = "_dwpt-hs-lvlr_"
+sim_name = "_dwpt-bpv-lvlr_"
 
 if run_spot == "HOME"
     # Link to system
@@ -61,14 +61,14 @@ else
 end
 
 
-system = System(joinpath(DATA_DIR, "tamu_DA_LVLr_bpv_A05_T100_sys.json"))
+system = System(joinpath(active_dir, "tamu_DA_LVLred_bpv_A05_T100_sys.json"))
 
 # WHAT TO DO IF YOU ALREADY HAVE A RESULTS FOLDER:
 
 sim_folder = joinpath(OUT_DIR, "dwpt-bpv-lvlr-A05_T100")
 sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
 results = SimulationResults(sim_folder);
-uc_results = get_problem_results(results, "UC")
+uc_results = get_decision_problem_results(results, "UC")
 
 set_system!(uc_results, system)
 
@@ -76,26 +76,94 @@ set_system!(uc_results, system)
 gr() # Loads the GR backend
 #plotlyjs() # Loads the JS backend - PROBLEMCHILD
 timestamps = get_realized_timestamps(uc_results)
-timestamps = DateTime("2018-07-08T00:00:00"):Millisecond(3600000):DateTime("2018-07-08T23:00:00")
+#timestamps = DateTime("2018-07-08T00:00:00"):Millisecond(3600000):DateTime("2018-07-08T23:00:00")
 variables = read_realized_variables(uc_results)
 #plot_dataframe(variables[:P__RenewableDispatch], timestamps)
 # TO MAKE A STACK OR BAR CHART:
 #plot_dataframe(variables[:P__ThermalMultiStart], timestamps; stack = true)
 #plot_dataframe(variables[:P__RenewableDispatch], timestamps; bar = true)
 
+#NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
+renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch")
+thermPwr = read_realized_variable(uc_results, "ActivePowerVariable__ThermalMultiStart")
+load_param = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__PowerLoad")
+resUp_param = read_realized_parameter("RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP")
+resDown_param = read_realized_parameter("RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN")
+resSpin_param = read_realized_parameter("RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN")
+slackup_var = read_realized_variable(uc_results, "SystemBalanceSlackUp__Bus")
+slackdwn_var = read_realized_variable(uc_results, "SystemBalanceSlackDown__Bus")
+
 # STACKED GENERATION PLOT:
-generation = get_generation_data(uc_results)
-date_folder = "Sep30_21/"
-sim_week = "_SummerDay"
-simplegen = string("SimpleGenStack", sim_week)
-plot_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots/"
-plot_pgdata(generation, stack = true; title = simplegen, save = string(plot_dir, date_folder), format = "png");
+generation = [renPwr, thermPwr]
+dem_name = string("PowerLoadDemand", sim_name, tran_set)
+#plot_dataframe(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
 
 # Stacked Gen by Fuel Type:
-fuelgen = string("FuelGenStack", sim_week)
-plot_fuel(uc_results, stack = true; title = fuelgen, save = string(plot_dir, date_folder), format = "png");
+fuelgen = string("FuelGenStack", sim_name, tran_set)
+plot_dataframe(renPwr, thermPwr, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
 
 # Reserves Plot
-reserves = get_service_data(uc_results)
-resgen = string("Reserves", sim_week)
-plot_pgdata(reserves; title = resgen, save = string(plot_dir, date_folder), format = "png");
+resgen = string("Reserves", sim_name, tran_set)
+plot_dataframe(resUp_param, resDown_param; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
+
+# FOR HANDLING SLACK VARIABLES (UNRESERVED LOAD)
+# Current number of buses
+bus_num = size(slackup_var[1,:])[1]
+sys_slackup = zeros(24)
+sys_slackdwn = zeros(24)
+for x in range(1, size(slackup_var[!,1])[1])
+    sys_slackup[x] = sum(slackup_var[x, 2:bus_num])
+    sys_slackdwn[x] = sum(slackdwn_var[x, 2:bus_num])
+end
+
+slackdf = DataFrame()
+insertcols!(slackdf, 1, :DateTime => slackdwn_var[!,1])
+insertcols!(slackdf, 2, :SlackUp => sys_slackup)
+insertcols!(slackdf, 3, :SlackDown => sys_slackdwn)
+
+# Write Excel Output Files
+cd(string(RES_DIR, date_folder))
+xcelname = string("_Output", sim_name, tran_set, ".xlsx")
+# Simple XLSX file output with ability to overwrite
+XLSX.writetable(
+    string("RE_GEN", xcelname),
+    renPwr,
+    overwrite=true,
+    sheetname="RE_Dispatch",
+    anchor_cell="A1"
+)
+XLSX.writetable(
+    string("TH_GEN", xcelname),
+    thermPwr,
+    overwrite=true,
+    sheetname="TH_Dispatch",
+    anchor_cell="A1"
+)
+XLSX.writetable(
+    string("DEMAND", xcelname),
+    load_param,
+    overwrite=true,
+    sheetname="Demand",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resUp_param,
+    overwrite=true,
+    sheetname="ResUP",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resDown_param,
+    overwrite=true,
+    sheetname="ResDWN",
+    anchor_cell = "A1"
+)
+XLSX.writetable(
+    string("RESERVES", xcelname),
+    resSpin_param,
+    overwrite=true,
+    sheetname="ResSPIN",
+    anchor_cell = "A1"
+)

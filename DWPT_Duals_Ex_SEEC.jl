@@ -19,7 +19,7 @@ using TimeSeries
 
 using Gurobi
 
-run_spot = "HOME"
+run_spot = "Desktop"
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
@@ -140,7 +140,7 @@ for x = 1: num_loads
         #println("Time series added.")
     end
 end
-to_json(system, joinpath(active_dir, string("tamu_DA_LVLred_bpv_", tran_set, "_sys.json")), force=true)
+to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_bpv_", tran_set, "_sys.json")), force=true)
 println("New active system file has been created.")
 
 # START EXECUTION:
@@ -212,7 +212,7 @@ build_out = build!(sim, serialize = false)
 execute!(sim)
 
 results = SimulationResults(sim);
-uc_results = get_problem_results(results, "UC"); # UC stage result metadata
+uc_results = get_decision_problem_results(results, "UC"); # UC stage result metadata
 set_system!(uc_results, system)
 # Execute Results
 println("MADE IT TO RESULTS")
@@ -232,7 +232,7 @@ resUp_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Reser
 resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN"]
 resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
 
-date_folder = "Feb22_22/"
+date_folder = "/Feb22_22/"
 fuelgen = string("FuelGenStack", sim_name, tran_set)
 plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
