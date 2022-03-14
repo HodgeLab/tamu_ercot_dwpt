@@ -26,7 +26,7 @@ ev_adpt_level = .05
 Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
-sim_name = "_dwpt-bpv-lvlr_"
+sim_name = "_dwpt-hs-lvlr_"
 
 if run_spot == "HOME"
     # Link to system
@@ -61,11 +61,11 @@ else
 end
 
 
-system = System(joinpath(active_dir, "tamu_DA_LVLred_bpv_A05_T100_sys.json"))
+system = System(joinpath(active_dir, "tamu_DA_LVLr_A05_T100_sys.json"))
 
 # WHAT TO DO IF YOU ALREADY HAVE A RESULTS FOLDER:
 
-sim_folder = joinpath(OUT_DIR, "dwpt-bpv-lvlr-A05_T100")
+sim_folder = joinpath(OUT_DIR, "dwpt-hs-lvlr-A05_T100")
 sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
 results = SimulationResults(sim_folder);
 uc_results = get_decision_problem_results(results, "UC")
@@ -74,7 +74,7 @@ set_system!(uc_results, system)
 
 # Execute Plotting
 gr() # Loads the GR backend
-#plotlyjs() # Loads the JS backend - PROBLEMCHILD
+plotlyjs() # Loads the JS backend
 timestamps = get_realized_timestamps(uc_results)
 #timestamps = DateTime("2018-07-08T00:00:00"):Millisecond(3600000):DateTime("2018-07-08T23:00:00")
 variables = read_realized_variables(uc_results)
@@ -87,15 +87,17 @@ variables = read_realized_variables(uc_results)
 renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch")
 thermPwr = read_realized_variable(uc_results, "ActivePowerVariable__ThermalMultiStart")
 load_param = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__PowerLoad")
-resUp_param = read_realized_parameter("RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP")
-resDown_param = read_realized_parameter("RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN")
-resSpin_param = read_realized_parameter("RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN")
+resUp_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP")
+resDown_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN")
+resSpin_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN")
 slackup_var = read_realized_variable(uc_results, "SystemBalanceSlackUp__Bus")
 slackdwn_var = read_realized_variable(uc_results, "SystemBalanceSlackDown__Bus")
 
 # STACKED GENERATION PLOT:
 generation = [renPwr, thermPwr]
+date_folder="/Feb22_22/"
 dem_name = string("PowerLoadDemand", sim_name, tran_set)
+#plot_demand(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
 #plot_dataframe(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
 
 # Stacked Gen by Fuel Type:

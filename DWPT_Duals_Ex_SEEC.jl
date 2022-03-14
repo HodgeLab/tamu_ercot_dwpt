@@ -20,13 +20,14 @@ using TimeSeries
 using Gurobi
 
 run_spot = "Desktop"
+ex_only = true
+sim_name = "_dwpt-hs-lvlr_BUGFIXTEST"
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
 Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
-sim_name = "_dwpt-bpv-lvlr_"
 
 if run_spot == "HOME"
     # Link to system
@@ -61,87 +62,91 @@ else
 end
 
 # Reduced_LVL System
-system = System(joinpath(active_dir, "tamu_DA_LVLr_BasePV_sys.json"))
+system = System(joinpath(active_dir, "tamu_DA_LVLr_A05_T100_sys.json"))
 # BasePV System
-#system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
+#system = System(joinpath(active_dir, "tamu_DA_LVLr_BasePV_sys.json"))
 #Alterante Systems
 #system = System(joinpath(main_dir, "active/tamu_DA_sys.json"))
 #system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
 
-# INITIALIZE LOADS:
-# Get Bus Names
-cd(main_dir)
-bus_details = CSV.read("bus_load_coords.csv", DataFrame)
-bus_names = bus_details[:,1]
-load_names = bus_details[:,2]
-dim_loads = size(load_names)
-num_loads = dim_loads[1]
+if ex_only == true
+    println("Ex Only")
+else
+    # INITIALIZE LOADS:
+    # Get Bus Names
+    cd(main_dir)
+    bus_details = CSV.read("bus_load_coords.csv", DataFrame)
+    bus_names = bus_details[:,1]
+    load_names = bus_details[:,2]
+    dim_loads = size(load_names)
+    num_loads = dim_loads[1]
 
-# Set dates for sim
-dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
-# Set forecast resolution
-resolution = Dates.Hour(1)
+    # Set dates for sim
+    dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
+    # Set forecast resolution
+    resolution = Dates.Hour(1)
 
-# Read from Excel File
-df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v4.xlsx"), "load_demand")...)
+    # Read from Excel File
+    df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v4.xlsx"), "load_demand")...)
 
-for x = 1: num_loads
-    # Extract power demand column
-    load_data = df[!, x]*ev_adpt_level
-    if maximum(load_data) > 2
-        @error("$x - $(maximum(load_data))")
-    end
-    # Convert to TimeArray
-    load_array = TimeArray(dates, load_data)
-    #println(load_array[1])
-
-    # Create forecast dictionary
-    forecast_data = Dict()
-    for i = 1:365
-        strt = (i-1)*24+1
-        finish = i*24+12
-        forecast_data[dates[strt]] = load_data[strt:finish]
-    end
-    # Create deterministic time series data
-    time_series = Deterministic("max_active_power",forecast_data, resolution)
-
-    # Check for pre-existing DWPT PowerLoad components
-    l_name = string(load_names[x], "_DWPT")
-    new_load = get_component(PowerLoad, system, l_name)
-    if isnothing(new_load)
-        #println("Load not found. Now creating...")
-        # Create new load
-        new_load = PowerLoad(
-            name = string(l_name), # ADD '_DWPT' to each bus name
-            available = true,
-            bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
-            model = "ConstantPower",
-            active_power = 1.0,
-            reactive_power = 1.0,
-            base_power = 100.0,
-            max_active_power = 1.5,
-            max_reactive_power = 1.3,
-            services = [],
-            )
-        # Add component to system
-        add_component!(system, new_load)
-        # Add deterministic forecast to the system
-        add_time_series!(system, new_load, time_series)
-        #println("Load created, time series added.")
-    else
-        # Add deterministic forecast to the system
-        # NOTE: run another "try" instance w/o the "catch", add_time_series after it
-        try
-            remove_time_series!(system, Deterministic, new_load, "max_active_power")
-        catch
-            #println("Time Series data did not previously exist. Now adding...")
+    for x = 1: num_loads
+        # Extract power demand column
+        load_data = df[!, x]*ev_adpt_level
+        if maximum(load_data) > 2
+            @error("$x - $(maximum(load_data))")
         end
-        add_time_series!(system, new_load, time_series)
-        #println("Time series added.")
+        # Convert to TimeArray
+        load_array = TimeArray(dates, load_data)
+        #println(load_array[1])
+
+        # Create forecast dictionary
+        forecast_data = Dict()
+        for i = 1:365
+            strt = (i-1)*24+1
+            finish = i*24+12
+            forecast_data[dates[strt]] = load_data[strt:finish]
+        end
+        # Create deterministic time series data
+        time_series = Deterministic("max_active_power",forecast_data, resolution)
+
+        # Check for pre-existing DWPT PowerLoad components
+        l_name = string(load_names[x], "_DWPT")
+        new_load = get_component(PowerLoad, system, l_name)
+        if isnothing(new_load)
+            #println("Load not found. Now creating...")
+            # Create new load
+            new_load = PowerLoad(
+                name = string(l_name), # ADD '_DWPT' to each bus name
+                available = true,
+                bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
+                model = "ConstantPower",
+                active_power = 1.0,
+                reactive_power = 1.0,
+                base_power = 100.0,
+                max_active_power = 1.5,
+                max_reactive_power = 1.3,
+                services = [],
+                )
+            # Add component to system
+            add_component!(system, new_load)
+            # Add deterministic forecast to the system
+            add_time_series!(system, new_load, time_series)
+            #println("Load created, time series added.")
+        else
+            # Add deterministic forecast to the system
+            # NOTE: run another "try" instance w/o the "catch", add_time_series after it
+            try
+                remove_time_series!(system, Deterministic, new_load, "max_active_power")
+            catch
+                #println("Time Series data did not previously exist. Now adding...")
+            end
+            add_time_series!(system, new_load, time_series)
+            #println("Time series added.")
+        end
     end
+    to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_bpv_", tran_set, "_sys.json")), force=true)
+    println("New active system file has been created.")
 end
-to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_bpv_", tran_set, "_sys.json")), force=true)
-println("New active system file has been created.")
 
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
@@ -196,8 +201,8 @@ DA_sequence = SimulationSequence(
 )
 
 sim = Simulation(
-    name = string("dwpt-bpv-lvlr-", tran_set),
-    steps = 1,
+    name = string(sim_name, tran_set),
+    steps = 5,
     models = models,
     sequence = DA_sequence,
     #initial_time = DateTime("2018-03-29T00:00:00"),
