@@ -21,7 +21,7 @@ using Gurobi
 
 run_spot = "Desktop"
 ex_only = true
-sim_name = "_dwpt-hs-lvlr_BUGFIXTEST"
+sim_name = "_dwpt-hs-lvlr_"
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
@@ -62,7 +62,7 @@ else
 end
 
 # Reduced_LVL System
-system = System(joinpath(active_dir, "tamu_DA_LVLr_A05_T100_sys.json"))
+system = System(joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")))
 # BasePV System
 #system = System(joinpath(active_dir, "tamu_DA_LVLr_BasePV_sys.json"))
 #Alterante Systems
@@ -144,7 +144,7 @@ else
             #println("Time series added.")
         end
     end
-    to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_bpv_", tran_set, "_sys.json")), force=true)
+    to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_hs_", tran_set, "_sys.json")), force=true)
     println("New active system file has been created.")
 end
 
@@ -239,7 +239,7 @@ resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Res
 
 date_folder = "/Feb22_22/"
 fuelgen = string("FuelGenStack", sim_name, tran_set)
-plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
+#plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "png"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
 
 # Demand Plot
@@ -273,31 +273,31 @@ XLSX.writetable(
     sheetname="TH_Dispatch",
     anchor_cell="A1"
 )
-XLSX.writetable(
-    string("DEMAND", xcelname),
-    load_param,
-    overwrite=true,
-    sheetname="Demand",
-    anchor_cell = "A1"
-)
-XLSX.writetable(
-    string("RESERVES", xcelname),
-    resUp_param,
-    overwrite=true,
-    sheetname="ResUP",
-    anchor_cell = "A1"
-)
-XLSX.writetable(
-    string("RESERVES", xcelname),
-    resDown_param,
-    overwrite=true,
-    sheetname="ResDWN",
-    anchor_cell = "A1"
-)
-XLSX.writetable(
-    string("RESERVES", xcelname),
-    resSpin_param,
-    overwrite=true,
-    sheetname="ResSPIN",
-    anchor_cell = "A1"
-)
+#XLSX.writetable(
+#    string("DEMAND", xcelname),
+#    load_param,
+#    overwrite=true,
+#    sheetname="Demand",
+#    anchor_cell = "A1"
+#)
+#XLSX.writetable(
+#    string("RESERVES", xcelname),
+#    resUp_param,
+#    overwrite=true,
+#    sheetname="ResUP",
+#    anchor_cell = "A1"
+#)
+#XLSX.writetable(
+#    string("RESERVES", xcelname),
+#    resDown_param,
+#    overwrite=true,
+#    sheetname="ResDWN",
+#    anchor_cell = "A1"
+#)
+#XLSX.writetable(
+#    string("RESERVES", xcelname),
+#    resSpin_param,
+#    overwrite=true,
+#    sheetname="ResSPIN",
+#    anchor_cell = "A1"
+#)

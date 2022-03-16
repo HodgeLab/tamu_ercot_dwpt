@@ -17,11 +17,11 @@ using TimeSeries
 
 using Gurobi
 
-run_spot = "HOME"
+run_spot = "Desktop"
 
 # Level of EV adoption (value from 0 to 1)
-ev_adpt_level = 1
-Adopt = "A100_"
+ev_adpt_level = .05
+Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
 sim_name = "_dwpt-hs-lvlr_"
@@ -77,19 +77,19 @@ if run_spot == "HOME"
 
     #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
     renPwr = variables["ActivePowerVariable__RenewableDispatch"]
-#    thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
+    thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
     load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
 #    resUp_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__REG_UP"]
 #    resDown_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveDown__REG_DN"]
 #    resSpin_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__SPIN"]
-#    slackup_var = variables["SystemBalanceSlackUp__Bus"]
-#    slackdwn_var = variables["SystemBalanceSlackDown__Bus"]
+    slackup_var = variables["SystemBalanceSlackUp__Bus"]
+    slackdwn_var = variables["SystemBalanceSlackDown__Bus"]
 
     thermPcost = expressions["ProductionCostExpression__ThermalMultiStart"]
     renPcost = expressions["ProductionCostExpression__RenewableDispatch"]
 
     # SYSTEM PRODUCTION COST CALCULATION
-    sys_cost = zeros(8760)
+    sys_cost = zeros(120)
     gen_num = size(thermPcost[1,:])[1]
     for x = 1:size(sys_cost)[1]
         sys_cost[x] = sum(thermPcost[x, 2:gen_num])
@@ -127,9 +127,9 @@ else
     # FOR HANDLING SLACK VARIABLES (UNRESERVED LOAD)
     # Current number of buses
     bus_num = size(slackup_var[1,:])[1]
-    sys_slackup = zeros(24)
-    sys_slackdwn = zeros(24)
-    for x in range(1, size(slackup_var[!,1])[1])
+    sys_slackup = zeros(bus_num)
+    sys_slackdwn = zeros(bus_num)
+    for x in 1:size(slackup_var[!,1])[1]
         sys_slackup[x] = sum(slackup_var[x, 2:bus_num])
         sys_slackdwn[x] = sum(slackdwn_var[x, 2:bus_num])
     end
@@ -157,6 +157,7 @@ dem_name = string("PowerLoadDemand", sim_name, tran_set)
 
 # Stacked Gen by Fuel Type:
 fuelgen = string("FuelGenStack", sim_name, tran_set)
+plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 #plot_dataframe(renPwr, thermPwr, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
 
 # Reserves Plot
@@ -182,13 +183,13 @@ XLSX.writetable(
 #    anchor_cell="A1"
 #)
 
-#XLSX.writetable(
-#    string("PROD_COST", xcelname),
-#    sysCost,
-#    overwrite=true,
-#    sheetname="Prod_Cost",
-#    anchor_cell="A1"
-#)
+XLSX.writetable(
+    string("PROD_COST", xcelname),
+    sysCost,
+    overwrite=true,
+    sheetname="Prod_Cost",
+    anchor_cell="A1"
+)
 
 #XLSX.writetable(
 #    string("CURTAILMENT", xcelname),
