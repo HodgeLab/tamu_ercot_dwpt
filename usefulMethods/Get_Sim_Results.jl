@@ -20,8 +20,8 @@ using Gurobi
 run_spot = "HOME"
 
 # Level of EV adoption (value from 0 to 1)
-ev_adpt_level = .50
-Adopt = "A50_"
+ev_adpt_level = 1
+Adopt = "A100_"
 Method = "T100"
 tran_set = string(Adopt, Method)
 sim_name = "_dwpt-hs-lvlr_"
@@ -59,11 +59,11 @@ else
 end
 
 
-system = System(joinpath(active_dir, "tamu_DA_LVLr_A05_T100_sys.json"))
+system = System(joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")))
 
 # WHAT TO DO IF YOU ALREADY HAVE A RESULTS FOLDER:
 
-sim_folder = joinpath(OUT_DIR, "dwpt-hs-lvlr-A05_T100")
+sim_folder = joinpath(OUT_DIR, string("dwpt-hs-lvlr-", tran_set))
 sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
 results = SimulationResults(sim_folder);
 if run_spot == "HOME"
@@ -77,16 +77,37 @@ if run_spot == "HOME"
 
     #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
     renPwr = variables["ActivePowerVariable__RenewableDispatch"]
-    thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
+#    thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
     load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
-    resUp_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__REG_UP"]
-    resDown_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveDown__REG_DN"]
-    resSpin_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__SPIN"]
-    slackup_var = variables["SystemBalanceSlackUp__Bus"]
-    slackdwn_var = variables["SystemBalanceSlackDown__Bus"]
+#    resUp_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__REG_UP"]
+#    resDown_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveDown__REG_DN"]
+#    resSpin_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__SPIN"]
+#    slackup_var = variables["SystemBalanceSlackUp__Bus"]
+#    slackdwn_var = variables["SystemBalanceSlackDown__Bus"]
 
     thermPcost = expressions["ProductionCostExpression__ThermalMultiStart"]
     renPcost = expressions["ProductionCostExpression__RenewableDispatch"]
+
+    # SYSTEM PRODUCTION COST CALCULATION
+    sys_cost = zeros(8760)
+    gen_num = size(thermPcost[1,:])[1]
+    for x = 1:size(sys_cost)[1]
+        sys_cost[x] = sum(thermPcost[x, 2:gen_num])
+    end
+    sysCost = DataFrame()
+    insertcols!(sysCost, 1, :DateTime => thermPcost[!,1])
+    insertcols!(sysCost, 2, :ProductionCost => sys_cost)
+
+    # CURTAILMENT CALCULATION
+#    renList = collect(get_components(RenewableDispatch, system))
+#    ren_tot = zeros(8760)
+#    for x = 1:size(renList)[1]
+#        new_ren = get_component(RenewableDispatch, system, renList[x].name)
+#        ren_data = get_time_series(Deterministic, new_ren, "max_active_power", start_time = DateTime(current_date), count = 1).data
+#        forecast_window_hr = collect(ren_data[DateTime(current_date)])[h]
+#        ren_tot[(sd-1)*24+h] = ren_tot[(sd-1)*24+h] + forecast_window_hr
+#    end
+
 else
     uc_results = get_decision_problem_results(results, "UC");
     set_system!(uc_results, system)
@@ -153,21 +174,29 @@ XLSX.writetable(
     sheetname="RE_Dispatch",
     anchor_cell="A1"
 )
-XLSX.writetable(
-    string("TH_GEN", xcelname),
-    thermPwr,
-    overwrite=true,
-    sheetname="TH_Dispatch",
-    anchor_cell="A1"
-)
+#XLSX.writetable(
+#    string("TH_GEN", xcelname),
+#    thermPwr,
+#    overwrite=true,
+#    sheetname="TH_Dispatch",
+#    anchor_cell="A1"
+#)
 
-XLSX.writetable(
-    string("TH_PROD_COST", xcelname),
-    thermPcost,
-    overwrite=true,
-    sheetname="TH_Prod_Cost",
-    anchor_cell="A1"
-)
+#XLSX.writetable(
+#    string("PROD_COST", xcelname),
+#    sysCost,
+#    overwrite=true,
+#    sheetname="Prod_Cost",
+#    anchor_cell="A1"
+#)
+
+#XLSX.writetable(
+#    string("CURTAILMENT", xcelname),
+#    renCurtail,
+#    overwrite = true,
+#    sheetname="Ren_Curtailment",
+#    anchor_cell="A1"
+#)
 
 #XLSX.writetable(
 #    string("DEMAND", xcelname),
