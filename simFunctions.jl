@@ -7,6 +7,7 @@ using CSV
 using XLSX
 using Plots
 using Dates
+using PlotlyJS
 #using PyPlot
 using DataFrames
 using TimeSeries
@@ -47,7 +48,7 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         active_dir = "/scratch/alpine/ansa1773/SIIP_Modeling/active"
     elseif run_spot == "Summit"
         home_dir = "/home/ansa1773/tamu_ercot_dwpt"
-        main_dir = "/scratch/alpine/ansa1773/SIIP_Modeling"
+        main_dir = "/scratch/summit/ansa1773/SIIP_Modeling"
         DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
         OUT_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/outputs"
         RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
@@ -66,7 +67,7 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
             system = System(joinpath(active_dir, "tamu_DA_LVLr_BasePV_sys.json"))
         elseif case == "hs"
             # Reduced_LVL System
-            system = System(joinpath(active_dir, string("tamu_DA_sys_LVLred_sys.json")))
+            system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
         end
         # INITIALIZE LOADS:
         # Get Bus Names
@@ -220,14 +221,14 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
         OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "C:/Users/antho/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
         active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
     elseif run_spot == "SEEC"
         home_dir = "C:/Users/A.J. Sauter/github/tamu_ercot_dwpt"
         main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
         OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
         active_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
     elseif run_spot == "Desktop"
         home_dir = "A:/Users/Documents/ASPIRE_Simulators/tamu_ercot_dwpt"
@@ -261,7 +262,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
         results = SimulationResults(sim_folder);
     end
-    if run_spot == "HOME"
+    if run_spot == "HOME" || run_spot == "Summit" || run_spot == "Alpine"
         uc_results = get_problem_results(results,"UC");
         set_system!(uc_results, system)
         timestamps = get_realized_timestamps(uc_results);
@@ -272,26 +273,14 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
 
         #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
         renPwr = variables["ActivePowerVariable__RenewableDispatch"]
-        thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
+        #thermPwr = variables["PowerAboveMinimumVariable__ThermalMultiStart"]
         load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
-    #    resUp_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__REG_UP"]
-    #    resDown_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveDown__REG_DN"]
-    #    resSpin_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__SPIN"]
+        resUp_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__REG_UP"]
+        resDown_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveDown__REG_DN"]
+        resSpin_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__SPIN"]
         slackup_var = variables["SystemBalanceSlackUp__Bus"]
         slackdwn_var = variables["SystemBalanceSlackDown__Bus"]
-
         thermPcost = expressions["ProductionCostExpression__ThermalMultiStart"]
-        renPcost = expressions["ProductionCostExpression__RenewableDispatch"]
-
-        # SYSTEM PRODUCTION COST CALCULATION
-        sys_cost = zeros(120)
-        gen_num = size(thermPcost[1,:])[1]
-        for x = 1:size(sys_cost)[1]
-            sys_cost[x] = sum(thermPcost[x, 2:gen_num])
-        end
-        sysCost = DataFrame()
-        insertcols!(sysCost, 1, :DateTime => thermPcost[!,1])
-        insertcols!(sysCost, 2, :ProductionCost => sys_cost)
 
         # CURTAILMENT CALCULATION
     #    renList = collect(get_components(RenewableDispatch, system))
@@ -318,45 +307,44 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         resSpin_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN")
         slackup_var = read_realized_variable(uc_results, "SystemBalanceSlackUp__Bus")
         slackdwn_var = read_realized_variable(uc_results, "SystemBalanceSlackDown__Bus")
-        #thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart")
-
-        # FOR HANDLING SLACK VARIABLES (UNRESERVED LOAD)
-        # Current number of buses
-        bus_num = size(slackup_var[1,:])[1]
-        sys_slackup = zeros(size(slackup_var[!,1])[1])
-        sys_slackdwn = zeros(size(slackup_var[!,1])[1])
-        for x in 1:size(slackup_var[!,1])[1]
-            sys_slackup[x] = sum(slackup_var[x, 2:bus_num])
-            sys_slackdwn[x] = sum(slackdwn_var[x, 2:bus_num])
-        end
-
-        slackdf = DataFrame()
-        insertcols!(slackdf, 1, :DateTime => slackdwn_var[!,1])
-        insertcols!(slackdf, 2, :SlackUp => sys_slackup)
-        insertcols!(slackdf, 3, :SlackDown => sys_slackdwn)
-
-        #sys_cost = zeros(size(thermPcost[!,1])[1])
-        #gen_num = size(thermPcost[1,:])[1]
-        #for x = 1:size(sys_cost)[1]
-        #    sys_cost[x] = sum(thermPcost[x, 2:gen_num])
-        #end
-        #sysCost = DataFrame()
-        #insertcols!(sysCost, 1, :DateTime => thermPcost[!,1])
-        #insertcols!(sysCost, 2, :ProductionCost => sys_cost)
+        thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart")
     end
+    # FOR HANDLING SLACK VARIABLES (UNRESERVED LOAD)
+    # Current number of buses
+    bus_num = size(slackup_var[1,:])[1]
+    sys_slackup = zeros(size(slackup_var[!,1])[1])
+    sys_slackdwn = zeros(size(slackup_var[!,1])[1])
+    for x in 1:size(slackup_var[!,1])[1]
+        sys_slackup[x] = sum(slackup_var[x, 2:bus_num])
+        sys_slackdwn[x] = sum(slackdwn_var[x, 2:bus_num])
+    end
+    slackdf = DataFrame()
+    insertcols!(slackdf, 1, :DateTime => slackdwn_var[!,1])
+    insertcols!(slackdf, 2, :SlackUp => sys_slackup)
+    insertcols!(slackdf, 3, :SlackDown => sys_slackdwn)
+
+    # SYSTEM PRODUCTION COST CALCULATION
+    sys_cost = zeros(size(thermPcost[!,1])[1])
+    gen_num = size(thermPcost[1,:])[1]
+    for x = 1:size(sys_cost)[1]
+        sys_cost[x] = sum(thermPcost[x, 2:gen_num])
+    end
+    sysCost = DataFrame()
+    insertcols!(sysCost, 1, :DateTime => thermPcost[!,1])
+    insertcols!(sysCost, 2, :ProductionCost => sys_cost)
 
     # Write Excel Output Files
     date_folder = "/Feb22_22"
     cd(string(RES_DIR, date_folder))
     xcelname = string("_Output", sim_name, tran_set, ".xlsx")
     # Simple XLSX file output with ability to overwrite
-#    XLSX.writetable(
-#        string("PROD_COST", xcelname),
-#        sysCost,
-#        overwrite=true,
-#        sheetname="Prod_Cost",
-#        anchor_cell="A1"
-#    )
+    XLSX.writetable(
+        string("PROD_COST", xcelname),
+        sysCost,
+        overwrite=true,
+        sheetname="Prod_Cost",
+        anchor_cell="A1"
+    )
     XLSX.writetable(
         string("RE_GEN", xcelname),
         renPwr,
@@ -411,13 +399,12 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     gr() # Loads the GR backend
     plotlyjs() # Loads the JS backend
     # STACKED GENERATION PLOT:
-    date_folder="/Feb22_22"
     dem_name = string("PowerLoadDemand", sim_name, tran_set)
     #plot_demand(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
     #plot_dataframe(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
     # Stacked Gen by Fuel Type:
     fuelgen = string("FuelGenStack", sim_name, tran_set)
-    plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
+    #plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
     #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
     #plot_dataframe(renPwr, thermPwr, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
     # Reserves Plot

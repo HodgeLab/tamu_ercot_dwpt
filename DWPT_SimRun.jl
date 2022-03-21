@@ -7,14 +7,15 @@
 
 include("simFunctions.jl")
 
-    run_spot = "Desktop"
-    ex_only = false
-case = "bpv"
-nsteps = 1
+run_spot = "HOME"
+ex_only = false
+case = "hs"
+nsteps = 5
 sim_name = string("dwpt-", case, "-lvlr-")
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
 method = "T100"
 
-tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case)
+#tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case)
+tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
