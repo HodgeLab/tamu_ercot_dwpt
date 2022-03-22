@@ -859,8 +859,8 @@ version = "0.19.4"
 
 [[deps.PowerSimulations]]
 deps = ["CSV", "DataFrames", "DataStructures", "Dates", "DocStringExtensions", "HDF5", "InfrastructureSystems", "JSON", "JSON3", "JuMP", "LinearAlgebra", "Logging", "MathOptInterface", "ParameterJuMP", "Pkg", "PowerModels", "PowerSystems", "ProgressMeter", "SHA", "Serialization", "TimeSeries", "TimerOutputs"]
-git-tree-sha1 = "06e7dd316ac214b1a2627463bebb2e1c2119a23c"
-repo-rev = "master"
+git-tree-sha1 = "3e26c29d6b170f4cf01d5996a80d2da58082f116"
+repo-rev = "jd/fix_simulation_state_bug"
 repo-url = "https://github.com/NREL-SIIP/PowerSimulations.jl.git"
 uuid = "e690365d-45e2-57bb-ac84-44ba829e73c4"
 version = "0.15.0"

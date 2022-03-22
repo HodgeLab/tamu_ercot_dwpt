@@ -274,6 +274,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
         renPwr = variables["ActivePowerVariable__RenewableDispatch"]
         #thermPwr = variables["PowerAboveMinimumVariable__ThermalMultiStart"]
+        thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"]
         load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
         resUp_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__REG_UP"]
         resDown_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveDown__REG_DN"]
@@ -301,6 +302,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
         renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch")
         #thermPwr = read_realized_variable(uc_results, "ActivePowerVariable__ThermalMultiStart")
+        thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"]
         load_param = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__PowerLoad")
         resUp_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP")
         resDown_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN")
