@@ -17,30 +17,33 @@ using Dates
 using DataFrames
 using TimeSeries
 
-using CPLEX
+using Gurobi
 
 loc_run = false
 
 # Level of EV adoption (value from 0 to 1)
-ev_adpt_level = 1
-Adopt = "A100_"
+ev_adpt_level = .05
+Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
+sim_name = "_dwpt-test_"
 
 if loc_run == true
     # Link to system
-    DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
-    OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-    main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
-    local_dir = "C:\\Users\\A.J. Sauter\\Documents"
+    home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
+    main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
+    DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
+    OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
 else
     # Link to system
     home_dir = "/home/ansa1773/tamu_ercot_dwpt"
-    main_dir = "/projects/ansa1773/SIIP_Modeling"
+    main_dir = "/scratch/summit/ansa1773/SIIP_Modeling"
     DATA_DIR = "/projects/ansa1773/SIIP_Modeling/data"
-    OUT_DIR = "/projects/ansa1773/SIIP_Modeling/outputs"
-    RES_DIR = "/projects/ansa1773/SIIP_Modeling/results"
-    active_dir = "/projects/ansa1773/SIIP_Modeling/active"
+    OUT_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/outputs"
+    RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
+    active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active"
 end
 
 # Reduced_LVL System
@@ -66,8 +69,9 @@ dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
 resolution = Dates.Hour(1)
 
 # Read from Excel File
-df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_", tran_set, "_v4.xlsx"), "load_demand")...)
-
+df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v4.xlsx"), "load_demand")...)
+println("")
+println("adding load data...")
 for x = 1: num_loads
     # Extract power demand column
     load_data = df[!, x]*ev_adpt_level
@@ -76,8 +80,6 @@ for x = 1: num_loads
     end
     # Convert to TimeArray
     load_array = TimeArray(dates, load_data)
-    #println(load_array[1])
-
     # Create forecast dictionary
     forecast_data = Dict()
     for i = 1:365
@@ -92,7 +94,6 @@ for x = 1: num_loads
     l_name = string(load_names[x], "_DWPT")
     new_load = get_component(PowerLoad, system, l_name)
     if isnothing(new_load)
-        #println("Load not found. Now creating...")
         # Create new load
         new_load = PowerLoad(
             name = string(l_name), # ADD '_DWPT' to each bus name
@@ -110,22 +111,19 @@ for x = 1: num_loads
         add_component!(system, new_load)
         # Add deterministic forecast to the system
         add_time_series!(system, new_load, time_series)
-        #println("Load created, time series added.")
     else
         # Add deterministic forecast to the system
         # NOTE: run another "try" instance w/o the "catch", add_time_series after it
         try
             remove_time_series!(system, Deterministic, new_load, "max_active_power")
         catch
-            #println("Time Series data did not previously exist. Now adding...")
         end
         add_time_series!(system, new_load, time_series)
-        #println("Time series added.")
     end
 end
-to_json(system, joinpath(active_dir, "tamu_DA_LVLred_", tran_set, "_sys.json"), force=true)
+to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")), force=true)
 println("New active system file has been created.")
-
+println("")
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
 cd(home_dir)
@@ -159,9 +157,11 @@ models = SimulationModels(
             system;
             name = "UC",
             optimizer = optimizer_with_attributes(
-                CPLEX.Optimizer,
+                Gurobi.Optimizer,
                 #"logLevel" => 1,
-                #"ratioGap" => 0.5
+                #"CPXPARAM_MIP_Tolerances_MIPGap" => 1e-3,
+                #"CPX_PARAM_MIPEMPHASIS" => 1,
+                #"CPX_PARAM_MIPDISPLAY" => 5,
             ),
             system_to_file = false,
             initialize_model = false,
@@ -179,8 +179,8 @@ DA_sequence = SimulationSequence(
 )
 
 sim = Simulation(
-    name = string("dwpt-week-", tran_set),
-    steps = 7,
+    name = string("dwpt-test-", tran_set),
+    steps = 1,
     models = models,
     sequence = DA_sequence,
     #initial_time = DateTime("2018-03-29T00:00:00"),
@@ -191,8 +191,12 @@ sim = Simulation(
 )
 
 # Use serialize = false only during development
+println("")
+println("building sim...")
 build_out = build!(sim, serialize = false)
+println("begin execution:")
 execute!(sim)
+println("")
 
 results = SimulationResults(sim);
 uc_results = get_problem_results(results, "UC"); # UC stage result metadata
@@ -215,7 +219,7 @@ resUp_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Reser
 resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN"]
 resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
 
-date_folder = "Feb22_22/"
+date_folder = "/Feb22_22/"
 sim_week = "_LVL_Red_TEST_"
 sim_startday = "_01-01"
 fuelgen = string("FuelGenStack", sim_week)
@@ -225,7 +229,7 @@ plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date
 # Demand Plot
 dem_name = string("PowerLoadDemand", sim_week)
 load_demand = get_load_data(uc_results);
-plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot

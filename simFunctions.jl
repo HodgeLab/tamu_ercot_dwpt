@@ -1,5 +1,5 @@
 using PowerSystems
-using PowerGraphics
+#using PowerGraphics
 using PowerSimulations
 using InfrastructureSystems
 const PSI = PowerSimulations
@@ -15,7 +15,14 @@ using Gurobi
 
 function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case)
     # Level of EV adoption (value from 0 to 1)
-    Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
+    if ev_adpt_level == 1
+        Adopt = "A100"
+    else
+        Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
+        if sizeof(Adopt) == 3
+            Adopt = string(split(Adopt, "_")[1], "0", "_")
+        end
+    end
     tran_set = string(Adopt, method)
     # Link to system
     if run_spot == "HOME"
@@ -262,7 +269,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
         results = SimulationResults(sim_folder);
     end
-    if run_spot == "HOME" || run_spot == "Summit" || run_spot == "Alpine"
+    if run_spot == "HOME" || run_spot == "Summit"
         uc_results = get_problem_results(results,"UC");
         set_system!(uc_results, system)
         timestamps = get_realized_timestamps(uc_results);
@@ -354,13 +361,13 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         sheetname="RE_Dispatch",
         anchor_cell="A1"
     )
-    #XLSX.writetable(
-    #    string("TH_GEN", xcelname),
-    #    thermPwr,
-    #    overwrite=true,
-    #    sheetname="TH_Dispatch",
-    #    anchor_cell="A1"
-    #)
+    XLSX.writetable(
+        string("TH_GEN", xcelname),
+        thermPwr,
+        overwrite=true,
+        sheetname="TH_Dispatch",
+        anchor_cell="A1"
+    )
     #XLSX.writetable(
     #    string("CURTAILMENT", xcelname),
     #    renCurtail,
@@ -368,34 +375,34 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     #    sheetname="Ren_Curtailment",
     #    anchor_cell="A1"
     #)
-    #XLSX.writetable(
-    #    string("DEMAND", xcelname),
-    #    load_param,
-    #    overwrite=true,
-    #    sheetname="Demand",
-    #    anchor_cell = "A1"
-    #)
-    #XLSX.writetable(
-    #    string("RESERVES", xcelname),
-    #    resUp_param,
-    #    overwrite=true,
-    #    sheetname="ResUP",
-    #    anchor_cell = "A1"
-    #)
-    #XLSX.writetable(
-    #    string("RESERVES", xcelname),
-    #    resDown_param,
-    #    overwrite=true,
-    #    sheetname="ResDWN",
-    #    anchor_cell = "A1"
-    #)
-    #XLSX.writetable(
-    #    string("RESERVES", xcelname),
-    #    resSpin_param,
-    #    overwrite=true,
-    #    sheetname="ResSPIN",
-    #    anchor_cell = "A1"
-    #)
+    XLSX.writetable(
+        string("DEMAND", xcelname),
+        load_param,
+        overwrite=true,
+        sheetname="Demand",
+        anchor_cell = "A1"
+    )
+    XLSX.writetable(
+        string("RESERVES", xcelname),
+        resUp_param,
+        overwrite=true,
+        sheetname="ResUP",
+        anchor_cell = "A1"
+    )
+    XLSX.writetable(
+        string("RESERVES", xcelname),
+        resDown_param,
+        overwrite=true,
+        sheetname="ResDWN",
+        anchor_cell = "A1"
+    )
+    XLSX.writetable(
+        string("RESERVES", xcelname),
+        resSpin_param,
+        overwrite=true,
+        sheetname="ResSPIN",
+        anchor_cell = "A1"
+    )
 
     # Execute Plotting
     gr() # Loads the GR backend

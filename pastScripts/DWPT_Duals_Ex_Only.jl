@@ -1,7 +1,8 @@
 # cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt")
-# include("DWPT_Duals_Execution.jl")
+#cd("C:\\Users\\antho\\github\\tamu_ercot_dwpt")
+# include("DWPT_Duals_Ex_Only.jl")
 
-# MUST USE #DEV Version of PowerSimulations.jl
+# MUST USE #MASTER branch of PowerSimulations.jl
 
 using PowerSystems
 using PowerGraphics
@@ -22,11 +23,11 @@ using Gurobi
 loc_run = false
 
 # Level of EV adoption (value from 0 to 1)
-ev_adpt_level = .4
-Adopt = "A40_"
+ev_adpt_level = .05
+Adopt = "A05_"
 Method = "T100"
 tran_set = string(Adopt, Method)
-sim_name = "_dwpt-hs-lvlr_"
+sim_name = "_dwpt-test_"
 
 if loc_run == true
     # Link to system
@@ -34,7 +35,7 @@ if loc_run == true
     main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
     DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
     OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-    RES_DIR = "C:/Users/antho/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
     active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
 else
     # Link to system
@@ -47,90 +48,26 @@ else
 end
 
 # Reduced_LVL System
-system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
+system = System(joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")))
 # BasePV System
 #system = System(joinpath(main_dir, "test_outputs/tamu_DA_basePV_sys.json"))
 #Alterante Systems
 #system = System(joinpath(main_dir, "active/tamu_DA_sys.json"))
 #system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
 
-# INITIALIZE LOADS:
-# Get Bus Names
-cd(main_dir)
-bus_details = CSV.read("bus_load_coords.csv", DataFrame)
-bus_names = bus_details[:,1]
-load_names = bus_details[:,2]
-dim_loads = size(load_names)
-num_loads = dim_loads[1]
-
 # Set dates for sim
 dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
 # Set forecast resolution
 resolution = Dates.Hour(1)
-
-# Read from Excel File
-df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v4.xlsx"), "load_demand")...)
-
-for x = 1: num_loads
-    # Extract power demand column
-    load_data = df[!, x]*ev_adpt_level
-    if maximum(load_data) > 2
-        @error("$x - $(maximum(load_data))")
-    end
-    # Convert to TimeArray
-    load_array = TimeArray(dates, load_data)
-    # Create forecast dictionary
-    forecast_data = Dict()
-    for i = 1:365
-        strt = (i-1)*24+1
-        finish = i*24+12
-        forecast_data[dates[strt]] = load_data[strt:finish]
-    end
-    # Create deterministic time series data
-    time_series = Deterministic("max_active_power",forecast_data, resolution)
-
-    # Check for pre-existing DWPT PowerLoad components
-    l_name = string(load_names[x], "_DWPT")
-    new_load = get_component(PowerLoad, system, l_name)
-    if isnothing(new_load)
-        # Create new load
-        new_load = PowerLoad(
-            name = string(l_name), # ADD '_DWPT' to each bus name
-            available = true,
-            bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
-            model = "ConstantPower",
-            active_power = 1.0,
-            reactive_power = 1.0,
-            base_power = 100.0,
-            max_active_power = 1.5,
-            max_reactive_power = 1.3,
-            services = [],
-            )
-        # Add component to system
-        add_component!(system, new_load)
-        # Add deterministic forecast to the system
-        add_time_series!(system, new_load, time_series)
-    else
-        # Add deterministic forecast to the system
-        # NOTE: run another "try" instance w/o the "catch", add_time_series after it
-        try
-            remove_time_series!(system, Deterministic, new_load, "max_active_power")
-        catch
-        end
-        add_time_series!(system, new_load, time_series)
-    end
-end
-to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_", tran_set, "_sys.json")), force=true)
-println("New active system file has been created.")
 
 # START EXECUTION:
 println("MADE IT TO EXECUTION")
 cd(home_dir)
 #Create empty template
 template_uc = ProblemTemplate(NetworkModel(
-    DCPPowerModel,
+    DCPPowerModel, #CopperPlatePowerModel,
     use_slacks = true,
-    duals = [NodalBalanceActiveConstraint] #CopperPlateBalanceConstraint
+    duals = [NodalBalanceActiveConstraint] #CopperPlateBalanceConstraint  ActivePowerNodalBalance
 ))
 
 #Injection Device Formulations
@@ -140,9 +77,11 @@ set_device_model!(template_uc, ThermalMultiStart, ThermalBasicUnitCommitment) #T
 set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
 set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 set_device_model!(template_uc, HydroDispatch, FixedOutput)
+# Check these? May be diff. for TAMU
 set_device_model!(template_uc, Line, StaticBranchUnbounded)
 set_device_model!(template_uc, Transformer2W, StaticBranchUnbounded)
 set_device_model!(template_uc, TapTransformer, StaticBranchUnbounded)
+
 #Service Formulations
 set_service_model!(template_uc, VariableReserve{ReserveUp}, RangeReserve)
 set_service_model!(template_uc, VariableReserve{ReserveDown}, RangeReserve)
@@ -155,10 +94,10 @@ models = SimulationModels(
             name = "UC",
             optimizer = optimizer_with_attributes(
                 Gurobi.Optimizer,
-                #"logLevel" => 1,
+                #"Threads" => 64,
             ),
             system_to_file = false,
-            initialize_model = false,
+            initialize_model = false, # Changed!
             #calculate_conflict = true,
             optimizer_solve_log_print = true,
             direct_mode_optimizer = true,
@@ -168,21 +107,28 @@ models = SimulationModels(
 
 DA_sequence = SimulationSequence(
     models = models,
+    #intervals = intervals,
     ini_cond_chronology = InterProblemChronology()
 )
 
 sim = Simulation(
-    name = string("dwpt-hs-lvlr-", tran_set),
-    steps = 365,
+    name = string("dwpt-test_", tran_set),
+    steps = 1,
     models = models,
     sequence = DA_sequence,
+    #initial_time = DateTime("2018-03-29T00:00:00"),
+    #initial_time = DateTime("2018-08-05T00:00:00"),
+    #initial_time = DateTime("2018-09-23T00:00:00")
     initial_time = DateTime("2018-01-01T00:00:00"),
     simulation_folder = OUT_DIR,
 )
-
 # Use serialize = false only during development
+println("")
+println("building sim...")
 build_out = build!(sim, serialize = false)
+println("begin execution:")
 execute!(sim)
+println("")
 
 results = SimulationResults(sim);
 uc_results = get_problem_results(results, "UC"); # UC stage result metadata
@@ -196,6 +142,8 @@ parameters = read_realized_parameters(uc_results)
 
 # GET RESULTS FROM THIS System
 # FROM #master BRANCH:
+# variables.keys
+# variables.vals
 renPwr = variables["ActivePowerVariable__RenewableDispatch"]
 thermPwr = variables["ActivePowerVariable__ThermalMultiStart"]
 load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
@@ -203,26 +151,42 @@ resUp_param = parameters["RequirementTimeSeriesParameter__VariableReserve__Reser
 resDown_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN"]
 resSpin_param = parameters["RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP"]
 
-date_folder = "Feb22_22/"
-fuelgen = string("FuelGenStack", sim_name)
+# FROM #DEV BRANCH:
+# keys(variables)
+# collect(values(variables[ENTER KEY HERE])
+#slackUp = get!(variables, PowerSimulations.VariableKey{SystemBalanceSlackUp, System}(""), 1)
+#slackDown = get!(variables, PowerSimulations.VariableKey{SystemBalanceSlackDown, System}(""), 1)
+#renPwr = get!(variables, PowerSimulations.VariableKey{ActivePowerVariable, RenewableDispatch}(""), 1)
+#thermPwr = get!(variables, PowerSimulations.VariableKey{ActivePowerVariable, ThermalMultiStart}(""), 1)
+#spinRes = get!(variables, PowerSimulations.VariableKey{ActivePowerReserveVariable, VariableReserve{ReserveUp}}("SPIN"), 1)
+#regDwn = get!(variables, PowerSimulations.VariableKey{ActivePowerReserveVariable, VariableReserve{ReserveDown}}("REG_DN"), 1)
+#regUp = get!(variables, PowerSimulations.VariableKey{ActivePowerReserveVariable, VariableReserve{ReserveUp}}("REG_UP"), 1)
+#thermOn = get!(variables, PowerSimulations.VariableKey{OnVariable, ThermalMultiStart}(""), 1)
+#thermStart = get!(variables, PowerSimulations.VariableKey{StartVariable, ThermalMultiStart}(""), 1)
+#thermStop = get!(variables, PowerSimulations.VariableKey{StopVariable, ThermalMultiStart}(""), 1)
+
+date_folder = "/Feb22_22/"
+sim_week = "_LVL_Red_TEST1_"
+sim_startday = "_01-01"
+fuelgen = string("FuelGenStack", sim_week)
 #plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
 # NOTE: Zoom in with plotlyJS backend
 
 # Demand Plot
-dem_name = string("PowerLoadDemand", sim_name)
+dem_name = string("PowerLoadDemand", sim_week)
 #load_demand = get_load_data(uc_results);
-#plot_demand(uc_results; title = dem_name, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
+#plot_demand(uc_results; title = load_demand, save = string(RES_DIR, date_folder), format = "svg"); #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 100)
 # NOTE: Zoom in with plotlyJS backend
 
 # Reserves Plot
-resgen = string("Reserves", sim_name, tran_set)
+resgen = string("Reserves", sim_week, tran_set, sim_startday)
 #reserves = get_service_data(uc_results);
 #plot_pgdata(reserves; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
 # NOTE: Zoom in with plotlyJS backend
 
 # Write Excel Output Files
 cd(string(RES_DIR, date_folder))
-xcelname = string("_Output", sim_name, tran_set, ".xlsx")
+xcelname = string("_Output", sim_week, tran_set, sim_startday, ".xlsx")
 # Simple XLSX file output with ability to overwrite
 XLSX.writetable(
     string("RE_GEN", xcelname),
@@ -266,3 +230,22 @@ XLSX.writetable(
     sheetname="ResSPIN",
     anchor_cell = "A1"
 )
+
+"""
+# COMPARE INITIAL CONDITIONS:
+# Step 1. BUILD SIM BUT DO NOT EXECUTE
+
+uc_model = get_simulation_model(sim, :UC)
+container_uc = PSI.get_optimization_container(uc_model)
+
+container_uc. # (PRESS TAB TO SHOW FIELDS)
+container_uc.initial_conditions # (SHOWS DICT WITH KEYS)
+
+keys(container_uc.initial_conditions)
+ics_values = container_uc.initial_conditions[ COPY PASTE DEVICE STATUS ];
+
+for ic in ics_values
+@show PSI.get_component_name(ic)
+@show PSI.get_condition(ic)
+end
+"""
