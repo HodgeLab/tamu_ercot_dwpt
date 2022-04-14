@@ -5,13 +5,14 @@ using InfrastructureSystems
 const PSI = PowerSimulations
 using CSV
 using XLSX
-using Plots
 using Dates
 using PlotlyJS
 #using PyPlot
+#using Plots
 using DataFrames
 using TimeSeries
 using Gurobi
+using Logging
 
 function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case)
     # Level of EV adoption (value from 0 to 1)
@@ -29,15 +30,15 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
         main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
-        OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "C:/Users/antho/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
-        active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
+        OUT_DIR = "D:/outputs"
+        RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        active_dir = "D:/active"
     elseif run_spot == "SEEC"
         home_dir = "C:/Users/A.J. Sauter/github/tamu_ercot_dwpt"
         main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
         OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-0365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
         active_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
     elseif run_spot == "Desktop"
         home_dir = "A:/Users/Documents/ASPIRE_Simulators/tamu_ercot_dwpt"
@@ -182,11 +183,11 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
                 name = "UC",
                 optimizer = optimizer_with_attributes(
                     Gurobi.Optimizer,
-
+                    "MIPGap" => 1e-3,
                 ),
                 system_to_file = false,
                 initialize_model = false,
-                #calculate_conflict = true,
+                calculate_conflict = true,
                 optimizer_solve_log_print = true,
                 direct_mode_optimizer = true,
             )
@@ -209,14 +210,20 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
     )
 
     # Use serialize = false only during development
-    build_out = build!(sim, serialize = false)
-    execute!(sim)
+    build_out = build!(sim, serialize = false; console_level = Logging.Error, file_level = Logging.Info)
+    execute_status = execute!(sim)
 
-    results = SimulationResults(sim);
-    uc_results = get_decision_problem_results(results, "UC"); # UC stage result metadata
-    set_system!(uc_results, system)
-    # Execute Results
-
+    if execute_status == PSI.RunStatus.FAILED
+        uc = sim.models[1]
+        conflict = sim.internal.container.infeasibility_conflict
+        open("testOut.txt", "w") do io
+        write(io, conflict) end
+    else
+        results = SimulationResults(sim);
+        #uc_results = get_decision_problem_results(results, "UC"); # UC stage result metadata
+        #set_system!(uc_results, system)
+    end
+return execute_status
 end
 
 function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
@@ -343,7 +350,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     insertcols!(sysCost, 2, :ProductionCost => sys_cost)
 
     # Write Excel Output Files
-    date_folder = "/Feb22_22"
+    date_folder = "/Mar29_22"
     cd(string(RES_DIR, date_folder))
     xcelname = string("_Output", sim_name, tran_set, ".xlsx")
     # Simple XLSX file output with ability to overwrite
@@ -354,20 +361,20 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         sheetname="Prod_Cost",
         anchor_cell="A1"
     )
-    XLSX.writetable(
-        string("RE_GEN", xcelname),
-        renPwr,
-        overwrite=true,
-        sheetname="RE_Dispatch",
-        anchor_cell="A1"
-    )
-    XLSX.writetable(
-        string("TH_GEN", xcelname),
-        thermPwr,
-        overwrite=true,
-        sheetname="TH_Dispatch",
-        anchor_cell="A1"
-    )
+#    XLSX.writetable(
+#        string("RE_GEN", xcelname),
+#        renPwr,
+#        overwrite=true,
+#        sheetname="RE_Dispatch",
+#        anchor_cell="A1"
+#    )
+#    XLSX.writetable(
+#        string("TH_GEN", xcelname),
+#        thermPwr,
+#        overwrite=true,
+#        sheetname="TH_Dispatch",
+#        anchor_cell="A1"
+#    )
     #XLSX.writetable(
     #    string("CURTAILMENT", xcelname),
     #    renCurtail,
@@ -375,34 +382,34 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     #    sheetname="Ren_Curtailment",
     #    anchor_cell="A1"
     #)
-    XLSX.writetable(
-        string("DEMAND", xcelname),
-        load_param,
-        overwrite=true,
-        sheetname="Demand",
-        anchor_cell = "A1"
-    )
-    XLSX.writetable(
-        string("RESERVES", xcelname),
-        resUp_param,
-        overwrite=true,
-        sheetname="ResUP",
-        anchor_cell = "A1"
-    )
-    XLSX.writetable(
-        string("RESERVES", xcelname),
-        resDown_param,
-        overwrite=true,
-        sheetname="ResDWN",
-        anchor_cell = "A1"
-    )
-    XLSX.writetable(
-        string("RESERVES", xcelname),
-        resSpin_param,
-        overwrite=true,
-        sheetname="ResSPIN",
-        anchor_cell = "A1"
-    )
+#    XLSX.writetable(
+#        string("DEMAND", xcelname),
+#        load_param,
+#        overwrite=true,
+#        sheetname="Demand",
+#        anchor_cell = "A1"
+#    )
+#    XLSX.writetable(
+#        string("RESERVES", xcelname),
+#        resUp_param,
+#        overwrite=true,
+#        sheetname="ResUP",
+#        anchor_cell = "A1"
+#    )
+#    XLSX.writetable(
+#        string("RESERVES", xcelname),
+#        resDown_param,
+#        overwrite=true,
+#        sheetname="ResDWN",
+#        anchor_cell = "A1"
+#    )
+#    XLSX.writetable(
+#        string("RESERVES", xcelname),
+#        resSpin_param,
+#        overwrite=true,
+#        sheetname="ResSPIN",
+#        anchor_cell = "A1"
+#    )
 
     # Execute Plotting
     gr() # Loads the GR backend
@@ -419,4 +426,160 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     # Reserves Plot
     resgen = string("Reserves", sim_name, tran_set)
     #plot_dataframe(resUp_param, resDown_param; title = resgen, save = string(RES_DIR, date_folder), format = "svg");
+end
+
+function tamuProd(case, ev_adpt_level)
+    home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
+    OUT_DIR = "D:/outputs/CompactThermal Set 1"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    if ev_adpt_level == 1
+        Adopt = "A100"
+    else
+        Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
+        if sizeof(Adopt) == 3
+            Adopt = string(split(Adopt, "_")[1], "0", "_")
+        end
+    end
+    method = "T100"
+    tran_set = string(Adopt, method)
+    sim_name = string("dwpt-", case, "-lvlr-")
+    sim_folder = joinpath(OUT_DIR, string(sim_name, tran_set))
+    sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
+    results = SimulationResults(sim_folder; ignore_status=true);
+    uc_results = get_decision_problem_results(results, "UC")
+
+    thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart");
+    # SYSTEM PRODUCTION COST CALCULATION
+    sys_cost = zeros(size(thermPcost[!,1])[1]);
+    gen_num = size(thermPcost[1,:])[1];
+    for x = 1:size(sys_cost)[1]
+        sys_cost[x] = sum(thermPcost[x, 2:gen_num]);
+    end
+    sysCost = DataFrame()
+    insertcols!(sysCost, 1, :DateTime => thermPcost[!,1]);
+    insertcols!(sysCost, 2, :ProductionCost => sys_cost);
+
+    date_folder = "/Mar29_22"
+    cd(string(RES_DIR, date_folder))
+    xcelname = string("_Output", sim_name, tran_set, ".xlsx")
+    XLSX.writetable(
+        string("PROD_COST_NEW", xcelname),
+        sysCost,
+        overwrite=true,
+        sheetname="Prod_Cost",
+        anchor_cell="A1"
+    )
+end
+
+function tamuGen(case, ev_adpt_level)
+    home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
+    OUT_DIR = "D:/outputs/CompactThermal Set 1"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    if ev_adpt_level == 1
+        Adopt = "A100"
+    else
+        Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
+        if sizeof(Adopt) == 3
+            Adopt = string(split(Adopt, "_")[1], "0", "_")
+        end
+    end
+    method = "T100"
+    tran_set = string(Adopt, method)
+    sim_name = string("dwpt-", case, "-lvlr-")
+    sim_folder = joinpath(OUT_DIR, string(sim_name, tran_set))
+    sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
+    results = SimulationResults(sim_folder; ignore_status=true);
+    uc_results = get_decision_problem_results(results, "UC")
+
+#    renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch");
+    thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"];
+    sys_pwr = zeros(size(renPwr[!,1])[1]);
+#    ren_num = size(renPwr[1,:])[1];
+    therm_num = size(thermPwr[1,:])[1];
+    for x = 1:size(sys_pwr)[1]
+#        sys_pwr[x] = (sum(renPwr[x, 2:ren_num]) + sum(thermPwr[x, 2:therm_num]))*100
+        sys_pwr[x] = sum(thermPwr[x, 2:therm_num])*100
+    end
+#    sysPwr = DataFrame()
+#    insertcols!(sysPwr, 1, :DateTime => renPwr[!, 1]);
+#    insertcols!(sysPwr, 2, :SystemPower => sys_pwr);
+
+    ThPwr = DataFrame()
+    insertcols!(ThPwr, 1, :DateTime => thermPwr[!, 1]);
+    insertcols!(ThPwr, 2, :ThermPower => sys_pwr);
+    date_folder = "/Mar29_22"
+    cd(string(RES_DIR, date_folder))
+    xcelname = string("_Output", sim_name, tran_set, ".xlsx")
+#    XLSX.writetable(
+#        string("GEN", xcelname),
+#        sysPwr,
+#        overwrite=true,
+#        sheetname="Dispatch",
+#        anchor_cell="A1"
+#    )
+    XLSX.writetable(
+        string("TH_GEN", xcelname),
+        ThPwr,
+        overwrite=true,
+        sheetname="TH_Dispatch",
+        anchor_cell="A1"
+    )
+end
+
+function tamuCurt(case, ev_adpt_level)
+    home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
+    active_dir = "D:/active"
+    OUT_DIR = "D:/outputs/CompactThermal Set 1"
+    RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+    if ev_adpt_level == 1
+        Adopt = "A100"
+    else
+        Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
+        if sizeof(Adopt) == 3
+            Adopt = string(split(Adopt, "_")[1], "0", "_")
+        end
+    end
+    method = "T100"
+    tran_set = string(Adopt, method)
+    sim_name = string("dwpt-", case, "-lvlr-")
+    system = System(joinpath(active_dir, string(sim_name, tran_set, "_sys.json")));
+    sim_folder = joinpath(OUT_DIR, string(sim_name, tran_set))
+    sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
+    results = SimulationResults(sim_folder; ignore_status=true);
+    uc_results = get_decision_problem_results(results, "UC")
+    # CURTAILMENT CALCULATION
+    renList = collect(get_components(RenewableDispatch, system));
+    ren_tot = zeros(8760);
+    for x = 1:size(renList)[1]
+        new_ren = get_component(RenewableDispatch, system, renList[x].name)
+        ren_data = get_time_series(Deterministic, new_ren, "max_active_power", count = 365).data;
+        for h = 1:size(ren_tot)[1]
+            d = Int.(floor(h/24) + 1)
+            fh = 1
+            forecast_window_hr = collect(ren_data)[d][2][fh]
+            ren_tot[h] = ren_tot[h] + forecast_window_hr
+        end
+    end
+
+    thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart");
+    # SYSTEM PRODUCTION COST CALCULATION
+    sys_cost = zeros(size(thermPcost[!,1])[1]);
+    gen_num = size(thermPcost[1,:])[1];
+    for x = 1:size(sys_cost)[1]
+        sys_cost[x] = sum(thermPcost[x, 2:gen_num]);
+    end
+    sysCost = DataFrame()
+    insertcols!(sysCost, 1, :DateTime => thermPcost[!,1]);
+    insertcols!(sysCost, 2, :ProductionCost => sys_cost);
+
+    date_folder = "/Mar29_22"
+    cd(string(RES_DIR, date_folder))
+    xcelname = string("_Output", sim_name, tran_set, ".xlsx")
+    XLSX.writetable(
+        string("CURTAILMENT", xcelname),
+        renCurtail,
+        overwrite = true,
+        sheetname="Ren_Curtailment",
+        anchor_cell="A1"
+    )
 end
