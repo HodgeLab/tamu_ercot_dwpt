@@ -5,12 +5,12 @@ struct CCConstraint <: PSI.ConstraintType end
 function apply_cc_constraints!(model)
     optimization_container = PSI.get_optimization_container(model)
     restrictions = model.ext["cc_restrictions"]
-    commitment_variables = PSI.get_variable(optimization_container, On(), PSY.ThermalMultiStart)
+    commitment_variables = PSI.get_variable(optimization_container, On(), PSI.ThermalMultiStart)
     time_steps = PSI.model_time_steps(optimization_container)
     constraint = PSI.add_constraint_container!(
         optimization_container,
         CCConstraint(),
-        PSY.ThermalMultiStart,
+        PSI.ThermalMultiStart,
         collect(keys(restrictions)),
         time_steps,
     )
@@ -25,17 +25,17 @@ end
 function apply_must_run_constraints!(model)
     system = PSI.get_system(model)
     optimization_container = PSI.get_optimization_container(model)
-    time_steps = PSI.model_time_steps(optimization_container)
+    time_steps = PSI.get_time_steps(optimization_container)
     must_run_gens =
-        [g for g in PSY.get_components(ThermalMultiStart, system, x -> PSY.get_must_run(x))]
-    commitment_variables = PSI.get_variable(optimization_container, On(), PSY.ThermalMultiStart)
-    for t in time_steps, g in get_name.(must_run_gens)
+        [g for g in get_components(ThermalMultiStart, system, x -> get_must_run(x))]
+    commitment_variables = PSI.get_variable(optimization_container, PSI.OnVariable(), ThermalMultiStart) #On()
+    for t in time_steps, g in PSI.get_name.(must_run_gens)
         JuMP.fix(commitment_variables[g, t], 1.0)
     end
 end
 
 function PSI.build_impl!(model::PSI.DecisionModel{StandardCommitmentCC})
-    PSI.build_impl!(get_optimization_container(model), get_template(model), get_system(model))
-    apply_cc_constraints!(model)
+    PSI.build_impl!(PSI.get_optimization_container(model), PSI.get_template(model), PSI.get_system(model))
+    #apply_cc_constraints!(model)
     apply_must_run_constraints!(model)
 end
