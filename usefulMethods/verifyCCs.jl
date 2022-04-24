@@ -15,6 +15,8 @@ using Logging
 using JSON
 using JuMP
 
+include("constrain_cc.jl")
+
 ev_adpt_level = .05
 method = "T100"
 case = "hs"
@@ -33,7 +35,7 @@ tran_set = string(Adopt, method)
 
 home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
 main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
-OUT_DIR = "D:/outputs"
+OUT_DIR = "D:/outputs/other"
 RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
 active_dir = "D:/active"
 
@@ -63,7 +65,7 @@ set_service_model!(template_uc, VariableReserve{ReserveDown}, RangeReserve)
 
 # This creates both a Simulation and a Decision Model for the sim
 
-UC = DecisionModel(
+UC2 = DecisionModel(
         StandardCommitmentCC,
         template_uc,
         system;
@@ -78,10 +80,11 @@ UC = DecisionModel(
         calculate_conflict = true, # used for debugging
         optimizer_solve_log_print = true, # used for debugging
         direct_mode_optimizer = true,
+        initial_time = DateTime("2018-01-01T00:00:00"),
     )
-models = SimulationModels(UC)
+models = SimulationModels(UC2)
 
-UC.ext["cc_restrictions"] = JSON.parsefile(joinpath(active_dir, string(sim_name, tran_set, "_sys.json")))
+UC2.ext["cc_restrictions"] = JSON.parsefile(joinpath(active_dir, "cc_restrictions.json"));
 
 DA_sequence = SimulationSequence(
     models = models,
@@ -98,5 +101,7 @@ sim = Simulation(
     simulation_folder = OUT_DIR, # specify location of your simulation output files
 )
 # Use serialize = false only during development
-build_out = build!(sim, serialize = false; console_level = Logging.Error, file_level = Logging.Info)
-solve!(UC)
+build_out = build!(sim, serialize = false; console_level = Logging.Info)#, file_level = Logging.Info)
+execute_status = execute!(sim)
+
+#solve!(UC)

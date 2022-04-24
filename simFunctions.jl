@@ -13,6 +13,8 @@ using DataFrames
 using TimeSeries
 using Gurobi
 using Logging
+using JSON
+using JuMP
 
 function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case)
     # Level of EV adoption (value from 0 to 1)
@@ -175,24 +177,25 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
     set_service_model!(template_uc, VariableReserve{ReserveUp}, RangeReserve)
     set_service_model!(template_uc, VariableReserve{ReserveDown}, RangeReserve)
 
-    models = SimulationModels(
-        decision_models = [
-            DecisionModel(
-                template_uc,
-                system;
-                name = "UC",
-                optimizer = optimizer_with_attributes(
-                    Gurobi.Optimizer,
-                    "MIPGap" => 1e-3,
-                ),
-                system_to_file = false,
-                initialize_model = false,
-                calculate_conflict = true,
-                optimizer_solve_log_print = true,
-                direct_mode_optimizer = true,
-            )
-        ]
-    )
+    UC = DecisionModel(
+            StandardCommitmentCC,
+            template_uc,
+            system;
+            name = "UC",
+            # Determine optimizer parameters
+            optimizer = optimizer_with_attributes(
+                Gurobi.Optimizer,
+                "MIPGap" => 1e-3,
+            ),
+            system_to_file = false,
+            initialize_model = false,
+            calculate_conflict = true, # used for debugging
+            optimizer_solve_log_print = true, # used for debugging
+            direct_mode_optimizer = true,
+            initial_time = DateTime("2018-01-01T00:00:00"),
+        )
+    models = SimulationModels(UC)
+    UC.ext["cc_restrictions"] = JSON.parsefile(joinpath(active_dir, "cc_restrictions.json"));
 
     DA_sequence = SimulationSequence(
         models = models,
@@ -361,20 +364,27 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         sheetname="Prod_Cost",
         anchor_cell="A1"
     )
-#    XLSX.writetable(
-#        string("RE_GEN", xcelname),
-#        renPwr,
-#        overwrite=true,
-#        sheetname="RE_Dispatch",
-#        anchor_cell="A1"
-#    )
-#    XLSX.writetable(
-#        string("TH_GEN", xcelname),
-#        thermPwr,
-#        overwrite=true,
-#        sheetname="TH_Dispatch",
-#        anchor_cell="A1"
-#    )
+    XLSX.writetable(
+        string("RE_GEN", xcelname),
+        renPwr,
+        overwrite=true,
+        sheetname="RE_Dispatch",
+        anchor_cell="A1"
+    )
+    XLSX.writetable(
+        string("TH_GEN", xcelname),
+        thermPwr,
+        overwrite=true,
+        sheetname="TH_Dispatch",
+        anchor_cell="A1"
+    )
+    XLSX.writetable(
+        string("Slack", xcelname),
+        slackdf,
+        overwrite=true,
+        sheetname="Slack",
+        anchor_cell="A1"
+    )
     #XLSX.writetable(
     #    string("CURTAILMENT", xcelname),
     #    renCurtail,
@@ -382,13 +392,13 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     #    sheetname="Ren_Curtailment",
     #    anchor_cell="A1"
     #)
-#    XLSX.writetable(
-#        string("DEMAND", xcelname),
-#        load_param,
-#        overwrite=true,
-#        sheetname="Demand",
-#        anchor_cell = "A1"
-#    )
+    XLSX.writetable(
+        string("DEMAND", xcelname),
+        load_param,
+        overwrite=true,
+        sheetname="Demand",
+        anchor_cell = "A1"
+    )
 #    XLSX.writetable(
 #        string("RESERVES", xcelname),
 #        resUp_param,
@@ -412,15 +422,15 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
 #    )
 
     # Execute Plotting
-    gr() # Loads the GR backend
-    plotlyjs() # Loads the JS backend
+#    gr() # Loads the GR backend
+#    plotlyjs() # Loads the JS backend
     # STACKED GENERATION PLOT:
     dem_name = string("PowerLoadDemand", sim_name, tran_set)
     #plot_demand(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
     #plot_dataframe(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
     # Stacked Gen by Fuel Type:
     fuelgen = string("FuelGenStack", sim_name, tran_set)
-    #plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
+    #plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR), format = "svg");
     #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
     #plot_dataframe(renPwr, thermPwr, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
     # Reserves Plot
