@@ -33,21 +33,21 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
         OUT_DIR = "D:/outputs"
-        RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        RES_DIR = "D:/results"
         active_dir = "D:/active"
     elseif run_spot == "SEEC"
         home_dir = "C:/Users/A.J. Sauter/github/tamu_ercot_dwpt"
         main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
         OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/results"
         active_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
     elseif run_spot == "Desktop"
         home_dir = "A:/Users/Documents/ASPIRE_Simulators/tamu_ercot_dwpt"
         main_dir = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling"
         DATA_DIR = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
         OUT_DIR = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        RES_DIR = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/results"
         active_dir = "A:/Users/AJ/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
     elseif run_spot == "Alpine"
         home_dir = "/home/ansa1773/tamu_ercot_dwpt"
@@ -286,7 +286,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
         results = SimulationResults(sim_folder);
     end
-    if run_spot == "HOME" || run_spot == "Summit"
+    if run_spot == "HOME"
         uc_results = get_problem_results(results,"UC");
         set_system!(uc_results, system)
         timestamps = get_realized_timestamps(uc_results);
@@ -359,10 +359,20 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     insertcols!(sysCost, 1, :DateTime => thermPcost[!,1])
     insertcols!(sysCost, 2, :ProductionCost => sys_cost)
 
+    # SYSTEM DEMAND
+    load_num = size(load_param[1, :])[1];
+    sys_demand = zeros(size(load_param[!, 1])[1]);
+    for x=1:size(sys_demand)[1]
+       sys_demand[x] = sum(load_param[x, 2:load_num])
+    end
+    sysDemand = DataFrame()
+    insertcols!(sysDemand, 1, :DateTime => load_param[!, 1]);
+    insertcols!(sysDemand, 2, :SystemDemand => -sys_demand);
+
     # Write Excel Output Files
-    date_folder = "/Apr24_22"
-    cd(string(RES_DIR, date_folder))
-    xcelname = string("_Output", sim_name, tran_set, ".xlsx")
+    #date_folder = "/Apr24_22"
+    cd(string(RES_DIR)
+    xcelname = string("_Output_", sim_name, tran_set, ".xlsx")
     # Simple XLSX file output with ability to overwrite
     XLSX.writetable(
         string("PROD_COST", xcelname),
@@ -405,6 +415,13 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         overwrite=true,
         sheetname="Demand",
         anchor_cell = "A1"
+    )
+    XLSX.writetable(
+        string("SysDemand", xcelname),
+        sysDemand,
+        overwrite=true,
+        sheetname="sys demand MWh",
+        anchor_cell="A1"
     )
 #    XLSX.writetable(
 #        string("RESERVES", xcelname),
