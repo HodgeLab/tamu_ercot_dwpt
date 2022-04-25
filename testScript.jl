@@ -5,11 +5,11 @@ function fun1(x, y)
 end
 
 #OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-OUT_DIR = "D:/outputs/CompactThermal Set 1"
+OUT_DIR = "D:/outputs/CC_constraints_test/must_run"
 RES_DIR = "D:/results"
 RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
 tran_set = "A05_T100"
-case = "bpv"
+case = "hs"
 sim_name = string("dwpt-", case, "-lvlr-")
 #sim_name = "no-dwpt-hs-A0_T100"
 sim_folder = joinpath(OUT_DIR, string(sim_name, tran_set))

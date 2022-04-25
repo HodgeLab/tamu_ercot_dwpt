@@ -94,7 +94,7 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         resolution = Dates.Hour(1)
 
         # Read from Excel File
-        df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v4.xlsx"), "load_demand")...)
+        df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v5.xlsx"), "load_demand")...)
 
         for x = 1: num_loads
             # Extract power demand column
@@ -317,16 +317,16 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         variables = read_realized_variables(uc_results);
 
         #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
-        renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch")
+        renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch");
         #thermPwr = read_realized_variable(uc_results, "ActivePowerVariable__ThermalMultiStart")
-        thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"]
-        load_param = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__PowerLoad")
-        resUp_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP")
-        resDown_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN")
-        resSpin_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN")
-        slackup_var = read_realized_variable(uc_results, "SystemBalanceSlackUp__Bus")
-        slackdwn_var = read_realized_variable(uc_results, "SystemBalanceSlackDown__Bus")
-        thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart")
+        thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"];
+        load_param = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__PowerLoad");
+        resUp_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP");
+        resDown_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN");
+        resSpin_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN");
+        slackup_var = read_realized_variable(uc_results, "SystemBalanceSlackUp__Bus");
+        slackdwn_var = read_realized_variable(uc_results, "SystemBalanceSlackDown__Bus");
+        thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart");
     end
     # FOR HANDLING SLACK VARIABLES (UNRESERVED LOAD)
     # Current number of buses
@@ -353,7 +353,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     insertcols!(sysCost, 2, :ProductionCost => sys_cost)
 
     # Write Excel Output Files
-    date_folder = "/Mar29_22"
+    date_folder = "/Apr24_22"
     cd(string(RES_DIR, date_folder))
     xcelname = string("_Output", sim_name, tran_set, ".xlsx")
     # Simple XLSX file output with ability to overwrite
