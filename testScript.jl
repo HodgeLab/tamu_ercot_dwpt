@@ -5,10 +5,10 @@ function fun1(x, y)
 end
 
 #OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-OUT_DIR = "D:/outputs/CC_constraints_test/must_run"
+OUT_DIR = "D:/outputs/Load_Test"
 RES_DIR = "D:/results"
-RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
-tran_set = "A05_T100"
+#RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+tran_set = "A100T100"
 case = "hs"
 sim_name = string("dwpt-", case, "-lvlr-")
 #sim_name = "no-dwpt-hs-A0_T100"
@@ -17,9 +17,18 @@ sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))
 results = SimulationResults(sim_folder; ignore_status=true);
 uc_results = get_decision_problem_results(results, "UC");
 
+active_dir = "D:/active"
+system = System(joinpath(active_dir, string(sim_name, tran_set, "_sys.json")));
+set_system!(uc_results, system)
+
+gr()
+plotlyjs()
+fuelgen = string("FuelGenStack", sim_name, tran_set)
+plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR), format = "svg")
 renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch");
 hydPwr = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__HydroDispatch");
 thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"];
+load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"];
 sys_pwr = zeros(size(renPwr[!,1])[1]);
 ren_num = size(renPwr[1,:])[1];
 therm_num = size(thermPwr[1,:])[1];
@@ -40,10 +49,17 @@ XLSX.writetable(
     sheetname="Dispatch",
     anchor_cell="A1"
 )
-
+load_num = size(load_param[1, :])[1];
+sys_demand = zeros(size(load_param[!, 1])[1]);
+for x=1:size(sys_demand)[1]
+   sys_demand[x] = sum(load_param[x, 2:load_num])
+end
+sysDemand = DataFrame()
+insertcols!(sysDemand, 1, :DateTime => load_param[!, 1]);
+insertcols!(sysDemand, 2, :SystemDemand => -sys_demand);
 xcelname = string("_Output_", sim_name, tran_set, ".xlsx")
 XLSX.writetable(
-    string("Demand", xcelname),
+    string("SysDemand", xcelname),
     sysDemand,
     overwrite=true,
     sheetname="sys demand MWh",

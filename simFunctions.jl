@@ -19,7 +19,7 @@ using JuMP
 function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case)
     # Level of EV adoption (value from 0 to 1)
     if ev_adpt_level == 1
-        Adopt = "A100"
+        Adopt = "A100_"
     else
         Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
         if sizeof(Adopt) == 3
@@ -99,9 +99,9 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         for x = 1: num_loads
             # Extract power demand column
             load_data = df[!, x]*ev_adpt_level
-            if maximum(load_data) > 2
-                @error("$x - $(maximum(load_data))")
-            end
+            #if maximum(load_data) > 2
+            #    @error("$x - $(maximum(load_data))")
+            #end
             # Convert to TimeArray
             load_array = TimeArray(dates, load_data)
             #println(load_array[1])
@@ -130,8 +130,8 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
                     active_power = 1.0,
                     reactive_power = 1.0,
                     base_power = 100.0,
-                    max_active_power = 1.5,
-                    max_reactive_power = 1.3,
+                    max_active_power = 1.0,
+                    max_reactive_power = 1.0,
                     services = [],
                     )
                 # Add component to system
@@ -231,7 +231,14 @@ end
 
 function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     # Level of EV adoption (value from 0 to 1)
-    Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
+    if ev_adpt_level == 1
+        Adopt = "A100_"
+    else
+        Adopt = string("A", split(string(ev_adpt_level), ".")[2], "_")
+        if sizeof(Adopt) == 3
+            Adopt = string(split(Adopt, "_")[1], "0", "_")
+        end
+    end
     tran_set = string(Adopt, method)
     if run_spot == "HOME"
         home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
