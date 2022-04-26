@@ -92,7 +92,7 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
         # Set forecast resolution
         resolution = Dates.Hour(1)
-        
+
         df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v5.xlsx"), "load_demand")...)
         # Read from Excel File
         for x = 1: num_loads
@@ -112,26 +112,38 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
             time_series = Deterministic("max_active_power",forecast_data, resolution)
             l_name = string(load_names[x], "_DWPT")
             new_load = get_component(PowerLoad, system, l_name)
-            new_load = PowerLoad(
-                name = string(l_name), # ADD '_DWPT' to each bus name
-                available = true,
-                bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
-                model = "ConstantPower",
-                active_power = peak_load,
-                reactive_power = peak_load,
-                base_power = 100.0,
-                max_active_power = peak_load,
-                max_reactive_power = peak_load*0.01,
-                services = [],
-            )
-            # Add component to system
-            add_component!(system, new_load)
-            # Add deterministic forecast to the system
-            add_time_series!(system, new_load, time_series)
+            if isnothing(new_load)
+                # Create new load
+                new_load = PowerLoad(
+                    name = string(l_name), # ADD '_DWPT' to each bus name
+                    available = true,
+                    bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
+                    model = "ConstantPower",
+                    active_power = peak_load,
+                    reactive_power = peak_load,
+                    base_power = 100.0,
+                    max_active_power = peak_load,
+                    max_reactive_power = peak_load*0.01,
+                    services = [],
+                )
+                # Add component to system
+                add_component!(system, new_load)
+                # Add deterministic forecast to the system
+                add_time_series!(system, new_load, time_series)
+            else
+                # Add deterministic forecast to the system
+                # NOTE: run another "try" instance w/o the "catch", add_time_series after it
+                try
+                    remove_time_series!(system, Deterministic, new_load, "max_active_power")
+                catch
+                    #println("Time Series data did not previously exist. Now adding...")
+                end
+                add_time_series!(system, new_load, time_series)
+            end
         end
         to_json(system, joinpath(active_dir, string(sim_name, tran_set, "_sys.json")), force=true)
         println("New active system file has been created.")
-    end
+end
 
     # START EXECUTION:
     println("MADE IT TO EXECUTION")
