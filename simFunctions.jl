@@ -244,15 +244,15 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
         main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
-        OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
-        active_dir = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
+        OUT_DIR = "D:/outputs"
+        RES_DIR = "D:/results"
+        active_dir = "D:/active"
     elseif run_spot == "SEEC"
         home_dir = "C:/Users/A.J. Sauter/github/tamu_ercot_dwpt"
         main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
         DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
         OUT_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
+        RES_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/results"
         active_dir = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/active"
     elseif run_spot == "Desktop"
         home_dir = "A:/Users/Documents/ASPIRE_Simulators/tamu_ercot_dwpt"
@@ -371,7 +371,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
 
     # Write Excel Output Files
     #date_folder = "/Apr24_22"
-    cd(string(RES_DIR)
+    cd(string(RES_DIR))
     xcelname = string("_Output_", sim_name, tran_set, ".xlsx")
     # Simple XLSX file output with ability to overwrite
     XLSX.writetable(
