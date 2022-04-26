@@ -97,20 +97,20 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         # Read from Excel File
         for x = 1: num_loads
             # Extract power demand column
-            load_data = df[!, x]*ev_adpt_level
-            peak_load = maximum(load_data)
+            load_data = df[!, x+1]*ev_adpt_level;
+            peak_load = maximum(load_data);
             # Convert to TimeArray
-            load_array = TimeArray(dates, load_data)
+            load_array = TimeArray(dates, load_data);
             # Create forecast dictionary
             forecast_data = Dict()
             for i = 1:365
                 strt = (i-1)*24+1
                 finish = i*24+12
-                forecast_data[dates[strt]] = load_data[strt:finish]/peak_load
+                forecast_data[dates[strt]] = load_data[strt:finish]
             end
             # Create deterministic time series data
-            time_series = Deterministic("max_active_power",forecast_data, resolution)
-            l_name = string(load_names[x], "_DWPT")
+            time_series = Deterministic("max_active_power",forecast_data, resolution);
+            l_name = string(load_names[x], "_DWPT");
             new_load = get_component(PowerLoad, system, l_name)
             if isnothing(new_load)
                 # Create new load
@@ -119,11 +119,11 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
                     available = true,
                     bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
                     model = "ConstantPower",
-                    active_power = peak_load,
-                    reactive_power = peak_load,
+                    active_power = 1,
+                    reactive_power = 1,
                     base_power = 100.0,
-                    max_active_power = peak_load,
-                    max_reactive_power = peak_load*0.01,
+                    max_active_power = 1,
+                    max_reactive_power = 1,
                     services = [],
                 )
                 # Add component to system

@@ -112,5 +112,21 @@ XLSX.writetable(
     sheetname="sys demand MWh",
     anchor_cell="A1"
 )
+
+total_load = zeros(36); # Length of the horizon
+for l in get_components(PowerLoad, system)
+    total_load += get_time_series_values(Deterministic, l, "max_active_power", start_time = DateTime(2018, 1, 1, 0))
+end
+
+resLoad = DataFrame()
+insertcols!(resLoad, 1, :ResultingLoad => total_load);
+XLSX.writetable(
+    "tamu_resLoad_og.xlsx",
+    resLoad,
+    overwrite=true,
+    sheetname="sys demand MWh",
+    anchor_cell="A1"
+)
+
 return load_tot
 end

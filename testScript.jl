@@ -8,7 +8,7 @@ end
 OUT_DIR = "D:/outputs/Load_Test"
 RES_DIR = "D:/results"
 #RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
-tran_set = "A100T100"
+tran_set = "A100_T100"
 case = "hs"
 sim_name = string("dwpt-", case, "-lvlr-")
 #sim_name = "no-dwpt-hs-A0_T100"

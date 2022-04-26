@@ -1,66 +1,58 @@
-# cd("C:\\Users\\A.J. Sauter\\github\\tamu_ercot_dwpt\\Satellite_Execution")
-# include("DWPT_Load_Verification.jl")
-
 using PowerSystems
-using PowerGraphics
+#using PowerGraphics
 using PowerSimulations
 using InfrastructureSystems
 const PSI = PowerSimulations
-
 using CSV
 using XLSX
-using Plots
 using Dates
-using PyPlot
+using PlotlyJS
+#using PyPlot
+#using Plots
 using DataFrames
 using TimeSeries
+using Gurobi
+using Logging
+using JSON
+using JuMP
 
-using Cbc #solver
+home_dir = "C:/Users/antho/github/tamu_ercot_dwpt"
+main_dir = "C:\\Users\\antho\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
+DATA_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
+OUT_DIR = "D:/outputs"
+RES_DIR = "D:/results"
+active_dir = "D:/active"
 
+case = "hs"
 Adopt = "A100_"
 Method = "T100"
+ev_adpt_level = 1;
 tran_set = string(Adopt, Method)
-
+sim_name = string("dwpt-", case, "-lvlr-")
 # Link to system
-DATA_DIR = "C:/Users/A.J. Sauter/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/data"
-system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
+system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"));
+# Set dates for sim
+dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23);
+# Set forecast resolution
+resolution = Dates.Hour(1);
 
 # INITIALIZE LOADS:
 # Get Bus Names
-main_dir = "C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling"
-cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Julia_Modeling")
-bus_details = CSV.read("bus_load_coords.csv", DataFrame)
-bus_names = bus_details[:,1]
-load_names = bus_details[:,2]
+cd(main_dir)
+bus_details = CSV.read("bus_load_coords.csv", DataFrame);
+bus_names = bus_details[:,1];
+load_names = bus_details[:,2];
+dim_loads = size(load_names);
+num_loads = dim_loads[1];
 
-cd(string("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Texas Traffic Data\\STAR II Database\\Load_Volumes_post"))
-load_list = readdir()
-dim_loads = size(load_list)
-num_loads = dim_loads[1]
-
-# Set dates for sim
-dates = DateTime(2018, 1, 1, 0):Hour(1):DateTime(2019, 1, 2, 23)
-# Set forecast resolution
-resolution = Dates.Hour(1)
-
-cd("C:\\Users\\A.J. Sauter\\OneDrive - UCB-O365\\Active Research\\ASPIRE\\CoSimulation Project\\Texas Traffic Data\\NHTS_Database\\ABM_Outputs")
+df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v5.xlsx"), "load_demand")...);
 # Read from Excel File
-df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_", tran_set, "_v4.xlsx"), "load_demand")...)
-
 for x = 1: num_loads
-    # Read from Excel File
-    # xf = XLSX.readxlsx(string("ABM_Energy_Output_", tran_set, "_v4.xlsx"))
-    # sh = xf["load_demand"]
-
     # Extract power demand column
-    load_data = df[!, x]
-    if maximum(load_data) > 2
-        @error("$x - $(maximum(load_data))")
-    end
+    load_data = df[!, x+1]*ev_adpt_level;
+    peak_load = maximum(load_data);
     # Convert to TimeArray
-    load_array = TimeArray(dates, load_data)
-    #println(load_array[1])
-
+    load_array = TimeArray(dates, load_data);
     # Create forecast dictionary
     forecast_data = Dict()
     for i = 1:365
@@ -69,31 +61,27 @@ for x = 1: num_loads
         forecast_data[dates[strt]] = load_data[strt:finish]
     end
     # Create deterministic time series data
-    time_series = Deterministic("max_active_power",forecast_data, resolution)
-
-    # Check for pre-existing DWPT PowerLoad components
-    l_name = string(load_names[x], "_DWPT")
+    time_series = Deterministic("max_active_power",forecast_data, resolution);
+    l_name = string(load_names[x], "_DWPT");
     new_load = get_component(PowerLoad, system, l_name)
     if isnothing(new_load)
-        #println("Load not found. Now creating...")
         # Create new load
         new_load = PowerLoad(
             name = string(l_name), # ADD '_DWPT' to each bus name
             available = true,
             bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
             model = "ConstantPower",
-            active_power = 1.0,
-            reactive_power = 1.0,
+            active_power = 1,
+            reactive_power = 1,
             base_power = 100.0,
-            max_active_power = 1.5,
-            max_reactive_power = 1.3,
+            max_active_power = 1,
+            max_reactive_power = 1,
             services = [],
-            )
+        )
         # Add component to system
         add_component!(system, new_load)
         # Add deterministic forecast to the system
         add_time_series!(system, new_load, time_series)
-        #println("Load created, time series added.")
     else
         # Add deterministic forecast to the system
         # NOTE: run another "try" instance w/o the "catch", add_time_series after it
@@ -103,6 +91,17 @@ for x = 1: num_loads
             #println("Time Series data did not previously exist. Now adding...")
         end
         add_time_series!(system, new_load, time_series)
-        #println("Time series added.")
     end
 end
+to_json(system, joinpath(active_dir, string(sim_name, tran_set, "TEST1_sys.json")), force=true)
+println("New active system file has been created.")
+
+total_load = zeros(36);
+for l in get_components(PowerLoad, system)
+    global total_load += get_time_series_values(Deterministic, l, "max_active_power", start_time = DateTime(2018, 1, 1, 0))*100
+end
+
+resLoad = DataFrame()
+insertcols!(resLoad, 1, :DateTime => dates[1:36]);
+insertcols!(resLoad, 2, :ResultingLoad => total_load);
+println(resLoad)
