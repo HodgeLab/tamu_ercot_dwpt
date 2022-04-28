@@ -3,6 +3,7 @@ using PowerSystems
 using PowerSimulations
 using InfrastructureSystems
 const PSI = PowerSimulations
+const PSY = PowerSystems
 using CSV
 using XLSX
 using Dates
@@ -58,50 +59,51 @@ for x = 1: num_loads
     for i = 1:365
         strt = (i-1)*24+1
         finish = i*24+12
+        #peak_load = maximum(load_data[strt:finish])
         forecast_data[dates[strt]] = load_data[strt:finish]
     end
     # Create deterministic time series data
     time_series = Deterministic("max_active_power",forecast_data, resolution);
     l_name = string(load_names[x], "_DWPT");
     new_load = get_component(PowerLoad, system, l_name)
-    if isnothing(new_load)
-        # Create new load
-        new_load = PowerLoad(
-            name = string(l_name), # ADD '_DWPT' to each bus name
-            available = true,
-            bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
-            model = "ConstantPower",
-            active_power = 1,
-            reactive_power = 1,
-            base_power = 100.0,
-            max_active_power = 1,
-            max_reactive_power = 1,
-            services = [],
-        )
-        # Add component to system
-        add_component!(system, new_load)
-        # Add deterministic forecast to the system
-        add_time_series!(system, new_load, time_series)
-    else
-        # Add deterministic forecast to the system
-        # NOTE: run another "try" instance w/o the "catch", add_time_series after it
-        try
-            remove_time_series!(system, Deterministic, new_load, "max_active_power")
-        catch
-            #println("Time Series data did not previously exist. Now adding...")
-        end
-        add_time_series!(system, new_load, time_series)
+    try
+        remove_component!(system, new_load)
     end
+    # Create new load
+    new_load = PowerLoad(
+        name = string(l_name), # ADD '_DWPT' to each bus name
+        available = true,
+        bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
+        model = "ConstantPower",
+        active_power = 1,
+        reactive_power = 1,
+        base_power = 100.0,
+        max_active_power = 1,
+        max_reactive_power = 1,
+        services = [],
+    )
+    # Add component to system
+    add_component!(system, new_load)
+    # Add deterministic forecast to the system
+    add_time_series!(system, new_load, time_series)
 end
 to_json(system, joinpath(active_dir, string(sim_name, tran_set, "TEST1_sys.json")), force=true)
 println("New active system file has been created.")
 
-total_load = zeros(36);
+global total_load = zeros(36);
 for l in get_components(PowerLoad, system)
-    global total_load += get_time_series_values(Deterministic, l, "max_active_power", start_time = DateTime(2018, 1, 1, 0))*100
+    global total_load += get_time_series_values(Deterministic, l, "max_active_power", start_time = DateTime(2018, 1, 1, 0))*100#*get_max_active_power(l)
 end
 
 resLoad = DataFrame()
 insertcols!(resLoad, 1, :DateTime => dates[1:36]);
 insertcols!(resLoad, 2, :ResultingLoad => total_load);
 println(resLoad)
+
+#XLSX.writetable(
+#    "tamu_resLoad_woop.xlsx",
+#    resLoad,
+#    overwrite=true,
+#    sheetname="sys demand MWh",
+#    anchor_cell="A1"
+#)

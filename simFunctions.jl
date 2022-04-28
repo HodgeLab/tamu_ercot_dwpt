@@ -1,5 +1,5 @@
 using PowerSystems
-#using PowerGraphics
+using PowerGraphics
 using PowerSimulations
 using InfrastructureSystems
 const PSI = PowerSimulations
@@ -7,8 +7,6 @@ using CSV
 using XLSX
 using Dates
 using PlotlyJS
-#using PyPlot
-#using Plots
 using DataFrames
 using TimeSeries
 using Gurobi
@@ -64,9 +62,6 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         RES_DIR = "/scratch/summit/ansa1773/SIIP_Modeling/results"
         active_dir = "/scratch/summit/ansa1773/SIIP_Modeling/active"
     end
-    #Alterante Systems
-    #system = System(joinpath(main_dir, "active/tamu_DA_sys.json"))
-    #system = System(joinpath(DATA_DIR, "texas_data/DA_sys.json"))
 
     if ex_only == true
         println("Ex Only")
@@ -106,40 +101,33 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
             for i = 1:365
                 strt = (i-1)*24+1
                 finish = i*24+12
+                #peak_load = maximum(load_data[strt:finish])
                 forecast_data[dates[strt]] = load_data[strt:finish]
             end
             # Create deterministic time series data
             time_series = Deterministic("max_active_power",forecast_data, resolution);
             l_name = string(load_names[x], "_DWPT");
             new_load = get_component(PowerLoad, system, l_name)
-            if isnothing(new_load)
-                # Create new load
-                new_load = PowerLoad(
-                    name = string(l_name), # ADD '_DWPT' to each bus name
-                    available = true,
-                    bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
-                    model = "ConstantPower",
-                    active_power = 1,
-                    reactive_power = 1,
-                    base_power = 100.0,
-                    max_active_power = 1,
-                    max_reactive_power = 1,
-                    services = [],
-                )
-                # Add component to system
-                add_component!(system, new_load)
-                # Add deterministic forecast to the system
-                add_time_series!(system, new_load, time_series)
-            else
-                # Add deterministic forecast to the system
-                # NOTE: run another "try" instance w/o the "catch", add_time_series after it
-                try
-                    remove_time_series!(system, Deterministic, new_load, "max_active_power")
-                catch
-                    #println("Time Series data did not previously exist. Now adding...")
-                end
-                add_time_series!(system, new_load, time_series)
+            try
+                remove_component!(system, new_load)
             end
+            # Create new load
+            new_load = PowerLoad(
+                name = string(l_name), # ADD '_DWPT' to each bus name
+                available = true,
+                bus = get_component(Bus, system, bus_names[x]), # USE BUS_LOAD_COORDS.CSV COLUMN 1
+                model = "ConstantPower",
+                active_power = 1,
+                reactive_power = 1,
+                base_power = 100.0,
+                max_active_power = 1,
+                max_reactive_power = 1,
+                services = [],
+            )
+            # Add component to system
+            add_component!(system, new_load)
+            # Add deterministic forecast to the system
+            add_time_series!(system, new_load, time_series)
         end
         to_json(system, joinpath(active_dir, string(sim_name, tran_set, "_sys.json")), force=true)
         println("New active system file has been created.")
@@ -156,7 +144,7 @@ end
     ))
 
     #Injection Device Formulations
-    set_device_model!(template_uc, ThermalMultiStart, ThermalCompactUnitCommitment) #ThermalBasicUnitCommitment
+    set_device_model!(template_uc, ThermalMultiStart, ThermalMultiStartUnitCommitment) #ThermalCompactUnitCommitment
     set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
     set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
     set_device_model!(template_uc, HydroDispatch, FixedOutput)
@@ -213,8 +201,6 @@ end
         write(io, conflict) end
     else
         results = SimulationResults(sim);
-        #uc_results = get_decision_problem_results(results, "UC"); # UC stage result metadata
-        #set_system!(uc_results, system)
     end
 return execute_status
 end
@@ -276,55 +262,24 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
         sim_folder = joinpath(sim_folder, "$(maximum(parse.(Int64,readdir(sim_folder))))")
         results = SimulationResults(sim_folder);
     end
-    if run_spot == "HOME"
-        uc_results = get_problem_results(results,"UC");
-        set_system!(uc_results, system)
-        timestamps = get_realized_timestamps(uc_results);
-        #timestamps = DateTime("2018-07-08T00:00:00"):Millisecond(3600000):DateTime("2018-07-08T23:00:00")
-        variables = read_realized_variables(uc_results);
-        parameters = read_realized_parameters(uc_results);
-        expressions = read_realized_expressions(uc_results);
 
-        #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
-        renPwr = variables["ActivePowerVariable__RenewableDispatch"]
-        #thermPwr = variables["PowerAboveMinimumVariable__ThermalMultiStart"]
-        thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"]
-        load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"]
-        resUp_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__REG_UP"]
-        resDown_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveDown__REG_DN"]
-        resSpin_param = variables["ActivePowerReserveVariable__VariableReserve__ReserveUp__SPIN"]
-        slackup_var = variables["SystemBalanceSlackUp__Bus"]
-        slackdwn_var = variables["SystemBalanceSlackDown__Bus"]
-        thermPcost = expressions["ProductionCostExpression__ThermalMultiStart"]
+    uc_results = get_decision_problem_results(results, "UC");
+    set_system!(uc_results, system)
+    timestamps = get_realized_timestamps(uc_results);
+    variables = read_realized_variables(uc_results);
 
-        # CURTAILMENT CALCULATION
-    #    renList = collect(get_components(RenewableDispatch, system))
-    #    ren_tot = zeros(8760)
-    #    for x = 1:size(renList)[1]
-    #        new_ren = get_component(RenewableDispatch, system, renList[x].name)
-    #        ren_data = get_time_series(Deterministic, new_ren, "max_active_power", start_time = DateTime(current_date), count = 1).data
-    #        forecast_window_hr = collect(ren_data[DateTime(current_date)])[h]
-    #        ren_tot[(sd-1)*24+h] = ren_tot[(sd-1)*24+h] + forecast_window_hr
-    #    end
+    #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
+    renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch");
+    #thermPwr = read_realized_variable(uc_results, "ActivePowerVariable__ThermalMultiStart")
+    thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"];
+    load_param = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__PowerLoad");
+    resUp_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP");
+    resDown_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN");
+    resSpin_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN");
+    slackup_var = read_realized_variable(uc_results, "SystemBalanceSlackUp__Bus");
+    slackdwn_var = read_realized_variable(uc_results, "SystemBalanceSlackDown__Bus");
+    thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart");
 
-    else
-        uc_results = get_decision_problem_results(results, "UC");
-        set_system!(uc_results, system)
-        timestamps = get_realized_timestamps(uc_results);
-        variables = read_realized_variables(uc_results);
-
-        #NOTE: ALL READ_XXXX VARIABLES ARE IN NATURAL UNITS
-        renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispatch");
-        #thermPwr = read_realized_variable(uc_results, "ActivePowerVariable__ThermalMultiStart")
-        thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"];
-        load_param = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__PowerLoad");
-        resUp_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__REG_UP");
-        resDown_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveDown__REG_DN");
-        resSpin_param = read_realized_parameter(uc_results, "RequirementTimeSeriesParameter__VariableReserve__ReserveUp__SPIN");
-        slackup_var = read_realized_variable(uc_results, "SystemBalanceSlackUp__Bus");
-        slackdwn_var = read_realized_variable(uc_results, "SystemBalanceSlackDown__Bus");
-        thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart");
-    end
     # FOR HANDLING SLACK VARIABLES (UNRESERVED LOAD)
     # Current number of buses
     bus_num = size(slackup_var[1,:])[1]
@@ -444,7 +399,7 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
     #plot_dataframe(load_param, slackup_var, stack = true; title = dem_name, save = string(RES_DIR, date_folder), format = "svg");
     # Stacked Gen by Fuel Type:
     fuelgen = string("FuelGenStack", sim_name, tran_set)
-    #plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR), format = "svg");
+    plot_fuel(uc_results, stack = true; title = fuelgen, save = string(RES_DIR), format = "svg");
     #To Specify Window: initial_time = DateTime("2018-01-01T00:00:00"), count = 168
     #plot_dataframe(renPwr, thermPwr, stack = true; title = fuelgen, save = string(RES_DIR, date_folder), format = "svg");
     # Reserves Plot
