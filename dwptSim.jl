@@ -13,7 +13,7 @@
 include("simFunctions.jl")
 include("constrain_cc.jl")
 function simRun(run_spot, case, ev_adpt_level)
-    ex_only = true
+    ex_only = false
     nsteps = 14
     sim_name = string("dwpt-", case, "-lvlr-")
     method = "T100_MS"

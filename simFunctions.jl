@@ -88,7 +88,7 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         # Set forecast resolution
         resolution = Dates.Hour(1)
 
-        df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v5.xlsx"), "load_demand")...)
+        df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v6.xlsx"), "load_demand")...)
         # Read from Excel File
         for x = 1: num_loads
             # Extract power demand column
@@ -110,6 +110,7 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
             new_load = get_component(PowerLoad, system, l_name)
             try
                 remove_component!(system, new_load)
+            catch
             end
             # Create new load
             new_load = PowerLoad(
@@ -144,7 +145,7 @@ end
     ))
 
     #Injection Device Formulations
-    set_device_model!(template_uc, ThermalMultiStart, ThermalMultiStartUnitCommitment) #ThermalCompactUnitCommitment
+    set_device_model!(template_uc, ThermalMultiStart, ThermalMultiStartUnitCommitment) #ThermalCompactUnitCommitment)
     set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
     set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
     set_device_model!(template_uc, HydroDispatch, FixedOutput)
@@ -389,6 +390,13 @@ function tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
 #        sheetname="ResSPIN",
 #        anchor_cell = "A1"
 #    )
+    XLSX.writetable(
+        string("DUALS", xcelname),
+        duals,
+        overwrite=true,
+        sheetname="Duals Outputs",
+        anchor_cell = "A1"
+    )
 
     # Execute Plotting
 #    gr() # Loads the GR backend
@@ -532,13 +540,35 @@ function tamuCurt(case, ev_adpt_level)
     for x = 1:size(renList)[1]
         new_ren = get_component(RenewableDispatch, system, renList[x].name)
         ren_data = get_time_series(Deterministic, new_ren, "max_active_power", count = 365).data;
-        for h = 1:size(ren_tot)[1]
-            d = Int.(floor(h/24) + 1)
-            fh = 1
-            forecast_window_hr = collect(ren_data)[d][2][fh]
-            ren_tot[h] = ren_tot[h] + forecast_window_hr
+        for d = 1:365
+            for h in 1:24
+                forecast_window_hr = collect(ren_data)[d][2][h]
+                forecast_window_hr *= get_max_active_power(new_ren)*100
+                ren_tot[((d-1)*24)+h] = ren_tot[((d-1)*24)+h] + forecast_window_hr
+            end
         end
     end
+
+    ren_tot = ren_tot[1:size(renPwr[!,1])[1]];
+    ren_pwr = zeros(size(renPwr[!,1])[1]);
+    curt = zeros(size(renPwr[!,1])[1]);
+    ren_num = size(renPwr[1,:])[1];
+    for x = 1:size(ren_pwr)[1]
+        ren_pwr[x] = sum(renPwr[x, 2:ren_num])
+        curt[x] = ren_tot_2w[x] - ren_pwr[x]
+    end
+
+    Curtail = DataFrame()
+    insertcols!(Curtail, 1, :DateTime => renPwr[!, 1]);
+    insertcols!(Curtail, 2, :Curtailment => curt);
+    xcelname = string("_Output_", sim_name, tran_set, ".xlsx")
+    XLSX.writetable(
+        string("Curtailment", xcelname),
+        Curtail,
+        overwrite=true,
+        sheetname="Curtailment",
+        anchor_cell="A1"
+    )
 
     thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart");
     # SYSTEM PRODUCTION COST CALCULATION

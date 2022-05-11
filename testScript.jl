@@ -5,10 +5,10 @@ function fun1(x, y)
 end
 
 #OUT_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/outputs"
-OUT_DIR = "D:/outputs/Load_Test"
+OUT_DIR = "D:/outputs/MultiStart_Test"
 RES_DIR = "D:/results"
 #RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
-tran_set = "A100_T100"
+tran_set = "A100_T100_Comp"
 case = "hs"
 sim_name = string("dwpt-", case, "-lvlr-")
 #sim_name = "no-dwpt-hs-A0_T100"
@@ -29,25 +29,43 @@ renPwr = read_realized_variable(uc_results, "ActivePowerVariable__RenewableDispa
 hydPwr = read_realized_parameter(uc_results, "ActivePowerTimeSeriesParameter__HydroDispatch");
 thermPwr = read_realized_aux_variables(uc_results)["PowerOutput__ThermalMultiStart"];
 load_param = parameters["ActivePowerTimeSeriesParameter__PowerLoad"];
+duals = read_realized_dual(uc_results, "NodalBalanceActiveConstraint__Bus");
 sys_pwr = zeros(size(renPwr[!,1])[1]);
+ren_pwr = zeros(size(renPwr[!,1])[1]);
+therm_pwr = zeros(size(thermPwr[!,1])[1]);
+hyd_pwr = zeros(size(hydPwr[!,1])[1]);
 ren_num = size(renPwr[1,:])[1];
 therm_num = size(thermPwr[1,:])[1];
 hyd_num = size(hydPwr[1,:])[1];
 for x = 1:size(sys_pwr)[1]
+    ren_pwr[x] = sum(renPwr[x, 2:ren_num])
+    therm_pwr[x] = sum(thermPwr[x, 2:therm_num])
+    hyd_pwr[x] = sum(hydPwr[x, 2:hyd_num])
     sys_pwr[x] = (sum(renPwr[x, 2:ren_num]) + sum(thermPwr[x, 2:therm_num]) + sum(hydPwr[x, 2:hyd_num]))
 end
 sysPwr = DataFrame()
 insertcols!(sysPwr, 1, :DateTime => renPwr[!, 1]);
-insertcols!(sysPwr, 2, :SystemPower => sys_pwr);
+insertcols!(sysPwr, 2, :Renewables => ren_pwr);
+insertcols!(sysPwr, 3, :Thermal => therm_pwr);
+insertcols!(sysPwr, 4, :Hydro => hyd_pwr);
+insertcols!(sysPwr, 5, :SystemPower => sys_pwr);
+
 #date_folder = "/Mar29_22"
 #cd(string(RES_DIR, date_folder))
 xcelname = string("_Output_", sim_name, tran_set, ".xlsx")
 XLSX.writetable(
-    string("GEN", xcelname),
+    string("Sys_GEN", xcelname),
     sysPwr,
     overwrite=true,
     sheetname="Dispatch",
     anchor_cell="A1"
+)
+XLSX.writetable(
+    string("DUALS", xcelname),
+    duals,
+    overwrite=true,
+    sheetname="Duals Outputs",
+    anchor_cell = "A1"
 )
 load_num = size(load_param[1, :])[1];
 sys_demand = zeros(size(load_param[!, 1])[1]);
@@ -65,6 +83,9 @@ XLSX.writetable(
     sheetname="sys demand MWh",
     anchor_cell="A1"
 )
+
+p2 = plot_fuel(uc_results; stair = true)
+PlotlyJS.savefig(p2, "RTS_bus_fuel_uc_Comp.pdf", width = 400*5, height = 400 )
 
 must_run_gens =
     [g for g in get_components(ThermalMultiStart, system, x -> get_must_run(x))];
