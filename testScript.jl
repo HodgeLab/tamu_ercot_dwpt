@@ -8,7 +8,7 @@ end
 OUT_DIR = "D:/outputs/MultiStart_Test"
 RES_DIR = "D:/results"
 #RES_DIR = "C:/Users/antho/OneDrive - UCB-O365/Active Research/ASPIRE/CoSimulation Project/Julia_Modeling/Satellite_Execution/Result_Plots"
-tran_set = "A100_T100_Comp"
+tran_set = "A100_T100_MS"
 case = "hs"
 sim_name = string("dwpt-", case, "-lvlr-")
 #sim_name = "no-dwpt-hs-A0_T100"
@@ -84,8 +84,22 @@ XLSX.writetable(
     anchor_cell="A1"
 )
 
-p2 = plot_fuel(uc_results; stair = true)
-PlotlyJS.savefig(p2, "RTS_bus_fuel_uc_Comp.pdf", width = 400*5, height = 400 )
+p2 = plot_fuel(uc_results)
+PlotlyJS.savefig(p2, "FuelPlot.pdf", width = 400*5, height = 400 )
+
+# Can do the same thing with OnVariable
+thermPcost = read_realized_expression(uc_results, "ProductionCostExpression__ThermalMultiStart");
+cost_sums_Comp = combine(thermPcost[!, 2:354], names(thermPcost[!, 2:354]) .=> sum)
+cost_diff = cost_sums_MS .- cost_sums_Comp
+xcelname = string("_Output_", sim_name, tran_set, ".xlsx")
+XLSX.writetable(
+    string("Cost_per_Unit_Compare", xcelname),
+    cost_diff,
+    overwrite=true,
+    sheetname="Therm_Cost",
+    anchor_cell="A1"
+)
+
 
 must_run_gens =
     [g for g in get_components(ThermalMultiStart, system, x -> get_must_run(x))];

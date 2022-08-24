@@ -88,7 +88,7 @@ function tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, c
         # Set forecast resolution
         resolution = Dates.Hour(1)
 
-        df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_A100_T100_v6.xlsx"), "load_demand")...)
+        df = DataFrame(XLSX.readtable(string("ABM_Energy_Output_Transit_v8.xlsx"), "load_demand")...)
         # Read from Excel File
         for x = 1: num_loads
             # Extract power demand column
