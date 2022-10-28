@@ -12,11 +12,9 @@
 
 include("simFunctions.jl")
 include("constrain_cc.jl")
-function simRun(run_spot, case, ev_adpt_level)
-    ex_only = true
-    nsteps = 2
+function simRun(run_spot, case, ev_adpt_level, method, start_date, nsteps)
+    ex_only = false
     sim_name = string("dwpt-", case, "-lvlr-")
-    method = "T100"
-    tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case)
+    tamuSimEx(run_spot, ex_only, ev_adpt_level, method, sim_name, nsteps, case, start_date)
     tamuSimRes(run_spot, ev_adpt_level, method, sim_name)
 end

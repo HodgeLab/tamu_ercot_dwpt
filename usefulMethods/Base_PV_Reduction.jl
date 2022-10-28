@@ -50,13 +50,20 @@ system = System(joinpath(active_dir, "tamu_DA_sys_LVLred.json"))
 
 # TO REMOVE ADDITIONAL SOLAR
 pvs = get_components(RenewableDispatch, system) |> collect
+
+origPV = ["Piano Solar", "Error Solar", "Bonus Solar", "Photo Solar", "Scene Solar",
+            "Drama Solar", "Tooth Solar", "Hover Solar", "Straw Solar", "River Solar",
+            "Spray 2 Solar", "Smoke Solar", "Rebel Solar", "Toast Solar", "Troop Solar",
+            "Mercy Solar", "Storm Solar", "Arena Solar", "Feign Solar", "Glass Solar",
+            "Blast Solar", "Giant Solar"]
 #counter = 0
 num_pvs = size(pvs)[1]
 for x = 1: num_pvs
-    if pvs[x].prime_mover == PrimeMovers.PVe
+    if pvs[x].prime_mover == PrimeMovers.PVe && pvs[x].name in origPV
+        set_available!(pvs[x], true)
+    elseif pvs[x].prime_mover == PrimeMovers.PVe
         set_available!(pvs[x], false)
-#
-     end
+    end
 end
 to_json(system, joinpath(active_dir, string("tamu_DA_LVLr_BasePV_sys.json")), force=true)
 println("New active system file has been created.")

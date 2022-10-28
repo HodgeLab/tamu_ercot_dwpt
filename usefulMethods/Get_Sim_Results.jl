@@ -21,7 +21,7 @@ run_spot = "Desktop"
 
 # Level of EV adoption (value from 0 to 1)
 ev_adpt_level = .05
-Adopt = "A05_"
+Adopt = "A100_"
 Method = "T100"
 tran_set = string(Adopt, Method)
 sim_name = "_dwpt-hs-lvlr_"
